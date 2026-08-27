@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Pacote QTI 2.1 (Objetiva e Discursiva)</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <!-- Biblioteca JSZip para compactação client-side -->
+  <script src="lib/jszip.min.js"></script>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Cabeçalho -->
+    <header>
+      <h1>Gerador de Pacotes QTI 2.1</h1>
+      <p>Crie e exporte bancos de questões com itens de <strong>Múltipla Escolha</strong> e <strong>Discursivas</strong> compatíveis com Blackboard, Canvas e Moodle.</p>
+    </header>
+
+    <!-- Barra de Configuração e Exemplos -->
+    <div class="config-bar">
+      <div class="input-group">
+        <label for="activity-title">Nome da Atividade / Banco:</label>
+        <input type="text" id="activity-title" value="Atividade Avaliativa" placeholder="Ex: Avaliação Bimestral - Banco de Dados">
+      </div>
+      <div class="sample-buttons">
+        <button id="btn-sample-obj" class="btn btn-outline" type="button">📋 Exemplo Objetiva</button>
+        <button id="btn-sample-disc" class="btn btn-outline" type="button">📋 Exemplo Discursiva</button>
+      </div>
+    </div>
+
+    <!-- Grid Principal -->
+    <main class="main-grid">
+      
+      <!-- Painel Esquerdo: Entrada de Questão -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>1. Entrada da Questão</h2>
+        </div>
+        <div class="panel-body">
+          <div class="editor-instructions">
+            <strong>Instruções de Formatação:</strong>
+            <ul style="margin-left: 18px; margin-top: 4px;">
+              <li><strong>Múltipla Escolha:</strong> coloque <code>*</code> na frente da letra correta (ex: <code>*a) Resposta</code>).</li>
+              <li><strong>Discursiva:</strong> apenas o enunciado (sem alternativas <code>a)</code>, <code>b)</code>).</li>
+              <li><strong>Padrão de Resposta:</strong> inicie a linha com <code>Padrão de resposta: seu texto</code>.</li>
+              <li><strong>Feedback:</strong> inicie a linha com <code>Feedback: seu texto</code>.</li>
+            </ul>
+          </div>
+
+          <textarea id="question-input" placeholder="Cole o texto da questão aqui...
+
+Exemplo Discursiva com Padrão de Resposta:
+Questão 1
+Explique o conceito de polimorfismo em POO.
+
+Padrão de resposta:
+Polimorfismo é a capacidade de objetos de diferentes classes responderem à mesma mensagem de formas distintas.
+
+Feedback:
+Muito bem! O aluno deve mencionar métodos sobrescritos e flexibilidade no código."></textarea>
+
+          <div class="action-row">
+            <button id="btn-add-question" class="btn btn-primary" style="flex: 2;">➕ Adicionar Questão ao JSON</button>
+            <button id="btn-clear-input" class="btn btn-outline" style="flex: 1;">Limpar Campo</button>
+          </div>
+
+          <!-- Visualizador do JSON Gerado -->
+          <details class="json-container" open>
+            <summary>Visualizar Estrutura JSON das Questões</summary>
+            <pre id="json-preview">[]</pre>
+          </details>
+        </div>
+      </section>
+
+      <!-- Painel Direito: Lista de Questões e Exportação -->
+      <section class="panel">
+        <div class="panel-header">
+          <h2>2. Questões Cadastradas (<span id="question-count">0</span>)</h2>
+          <button id="btn-clear-all" class="btn btn-danger-outline" style="padding: 4px 10px; font-size: 0.8rem;">Limpar Tudo</button>
+        </div>
+        <div class="panel-body">
+          <!-- Lista Dinâmica de Cards -->
+          <div id="questions-list" class="questions-list">
+            <!-- Renderizado dinamicamente pelo app.js -->
+          </div>
+
+          <!-- Botão de Exportação -->
+          <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);">
+            <button id="btn-export-zip" class="btn btn-success" style="width: 100%; padding: 14px; font-size: 1rem;" disabled>
+              📦 Gerar Pacote QTI (.zip)
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Painel de Logs de Monitoramento -->
+    <section class="log-panel">
+      <div class="log-header">
+        <h3>🖥️ Monitor de Logs & Processamento</h3>
+        <button id="btn-clear-logs" class="btn btn-outline" style="background: transparent; color: #94a3b8; border-color: #334155; padding: 4px 8px; font-size: 0.75rem;">Limpar Logs</button>
+      </div>
+      <div id="log-console" class="log-console">
+        <!-- Linhas de log inseridas dinamicamente pelo logger.js -->
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Módulo Principal JavaScript -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
