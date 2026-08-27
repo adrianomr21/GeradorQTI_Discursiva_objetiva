@@ -112,7 +112,7 @@ Pool_ExportFile_Nome_Atividade.zip
 ### Mapeamento no XML Discursivo:
 
 ```xml
-<assessmentItem ... identifier="QUE__1001_1">
+<assessmentItem ... identifier="QUE__00001">
   <responseDeclaration cardinality="single" baseType="string" identifier="RESPONSE">
     <!-- Padrão de Resposta -->
     <correctResponse>

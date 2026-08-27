@@ -51,5 +51,15 @@ export const XmlHelpers = {
   formatItemIdentifier(num) {
     const padded = String(num).padStart(5, '0');
     return `assessmentItem${padded}`;
+  },
+
+  /**
+   * Formata número sequencial para o identificador da questão no padrão QUE__00001
+   * @param {number} num - Número da questão
+   * @returns {string} String formatada (ex: QUE__00001)
+   */
+  formatQuestionIdentifier(num) {
+    const padded = String(num).padStart(5, '0');
+    return `QUE__${padded}`;
   }
 };

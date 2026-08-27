@@ -25,7 +25,7 @@ export const ItemBuilder = {
    * Constrói o XML para uma questão de Múltipla Escolha (Objetiva).
    */
   buildMultipleChoice(question, index) {
-    const questionId = `QUE__${index * 1000 + 1}_1`;
+    const questionId = XmlHelpers.formatQuestionIdentifier(index);
     const formattedPrompt = XmlHelpers.formatContent(question.prompt);
     
     // Identifica qual alternativa é a correta
@@ -116,7 +116,7 @@ export const ItemBuilder = {
    * Constrói o XML para uma questão Discursiva.
    */
   buildDiscursive(question, index) {
-    const questionId = `QUE__${index * 1000 + 1}_1`;
+    const questionId = XmlHelpers.formatQuestionIdentifier(index);
     const formattedPrompt = XmlHelpers.formatContent(question.prompt);
 
     // 1. Declaração do Padrão de Resposta (correctResponse e rubricBlock)
