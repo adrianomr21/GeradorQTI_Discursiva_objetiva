@@ -27,6 +27,11 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
   - **Feedback para o aluno**: mapeado em `<modalFeedback>`, visível após a entrega/correção.
 - **Identificadores Padronizados**:
   - Questões numeradas como `QUE__00001`, `QUE__00002`, correspondendo ao arquivo Word de backup.
+- **Importação de Bancos de Questões em Word (.docx)**:
+  - Botão **`📄 Importar Word (.docx)`** para carregar bancos completos de questões diretamente de documentos do Microsoft Word.
+  - **Segmentação Automática**: Identifica títulos de seções e delimitadores de questões (`Questão 1`, `Questão 2`, `Questão 1 — Roteiro 1`).
+  - **Preservação de Formatação e Mídias**: Converte estilos (negrito, itálico, sobrescrito, subscrito, tabelas) e extrai imagens do documento para Data URLs Base64.
+  - **Adição Contínua**: Anexa as questões importadas ao banco de questões sem apagar as existentes.
 - **Importação de Pacotes QTI (.zip)**:
   - Botão **`📥 Importar Pacote QTI (.zip)`** para carregar pacotes prontos de questões.
   - **Adição Contínua**: Adiciona todas as questões do pacote ao banco atual sem sobrescrever ou apagar as já cadastradas.
@@ -60,6 +65,8 @@ GeradorQTI_Discursiva_objetiva/
 │   │   ├── imageHelper.js       # Redimensionamento e alinhamento de imagens
 │   │   ├── htmlSanitizer.js     # Sanitizador e conversor para XHTML válido QTI 2.1
 │   │   └── assetManager.js      # Extrator de imagens em base64 e conversor de caminhos
+│   ├── docx/
+│   │   └── docxImporter.js      # Parser e importador de arquivos Microsoft Word (.docx)
 │   └── qti/
 │       ├── xmlHelpers.js        # Utilitários de escape e identificadores (QUE__00001)
 │       ├── itemBuilder.js       # Gerador do assessmentItem0000X.xml (Objetiva e Discursiva)
@@ -67,10 +74,11 @@ GeradorQTI_Discursiva_objetiva/
 │       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice, recursos e mídias)
 │       ├── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
 │       └── qtiImporter.js       # Descompactador e leitor de pacotes QTI 2.1 (.zip)
-├── tests/                       # Suíte de testes automatizados (50 testes unitários)
+├── tests/                       # Suíte de testes automatizados (53 testes unitários)
 │   ├── parser.test.js
 │   ├── richParser.test.js
 │   ├── editQuestion.test.js
+│   ├── docxImporter.test.js
 │   ├── qtiImporter.test.js
 │   ├── tableHelper.test.js
 │   ├── imageHelper.test.js
@@ -80,7 +88,7 @@ GeradorQTI_Discursiva_objetiva/
 │   ├── testBuilder.test.js
 │   ├── manifestBuilder.test.js
 │   └── xmlHelpers.test.js
-└── ExemplosQti/                 # Pacotes de referência no formato QTI 2.1
+└── ExemplosQti/                 # Pacotes de referência e documentos de validação (.docx e .zip)
 ```
 
 ---

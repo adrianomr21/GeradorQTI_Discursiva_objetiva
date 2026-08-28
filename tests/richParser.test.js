@@ -7,7 +7,7 @@ describe('Rich HTML Parsing in QuestionParser', () => {
     const richInput = `
       <p><strong>Questão 1</strong></p>
       <p>Calcule a derivada da função <em>f(x)</em> = x<sup>2</sup> + 3x.</p>
-      <p>*a) <strong>2x + 3</strong></p>
+      <p>*a) <em>f'(x)</em> = <strong>2x + 3</strong></p>
       <p>b) 2x</p>
       <p>c) x + 3</p>
       <p><strong>Feedback:</strong></p>

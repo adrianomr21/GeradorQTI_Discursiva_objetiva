@@ -56,7 +56,7 @@ export const QuestionParser = {
 
     // Expressão regular para alternativas no texto plano:
     // Aceita tanto com texto na mesma linha quanto com texto nas linhas seguintes
-    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))(?:\s+(.*)|\s*)$/;
+    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))(?:\s*(.*))$/;
 
     // Expressão regular para Padrão de Resposta
     const modelAnswerRegex = /^(?:padr[aã]o\s+de\s+resposta|resposta\s+modelo|crit[eé]rios?\s+de\s+corre[cç][aã]o|resposta\s+esperada)\s*:?\s*(.*)$/i;
@@ -125,7 +125,9 @@ export const QuestionParser = {
         const letter = (optionMatch[2] || optionMatch[3] || optionMatch[4]).toLowerCase();
         
         // Remove o prefixo da alternativa mantendo tags semânticas internas balanceadas
-        const optionContentHtml = this.removeOptionPrefix(lineHtml);
+        let optionContentHtml = this.removeOptionPrefix(lineHtml);
+        // Remove negrito que envolva toda a opção (usado como gabarito no Word), preservando termos em negrito no meio
+        optionContentHtml = this.stripFullOptionBold(optionContentHtml);
         const optionIndex = options.length + 1;
 
         options.push({
@@ -214,6 +216,8 @@ export const QuestionParser = {
   cleanLineContent(line) {
     if (!line) return '';
     let cleaned = HtmlSanitizer.cleanHtml(line);
+    // Mescla tags de estilo adjacentes preservando espaços intermediários
+    cleaned = cleaned.replace(/<\/(strong|b|em|i|u|s|sup|sub)>(\s*)<\1>/gi, (m, tag, sp) => sp || '');
     // Remove tags de bloco soltas no início/fim da linha para evitar aninhamento quebrado
     cleaned = cleaned.replace(/^\s*<(?:p|div)[^>]*>/i, '');
     cleaned = cleaned.replace(/<\/(?:p|div)>\s*$/i, '');
@@ -251,14 +255,66 @@ export const QuestionParser = {
   },
 
   /**
-   * Remove prefixos de alternativa (*a), b., (c), etc.) preservando as tags HTML internas abertas.
+   * Remove prefixos de alternativa (*a), b., (c), etc.) preservando as tags HTML internas abertas
+   * e tratando tags inline intermediárias ou prefixos repetidos.
    * @param {string} html
    * @returns {string}
    */
   removeOptionPrefix(html) {
     if (!html) return '';
-    return html
-      .replace(/^((?:\s*<[^>]+>)*)\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))\s*/i, '$1')
-      .trim();
+    let cleaned = html;
+
+    // 1. Mescla tags de formatação adjacentes preservando espaços intermediários
+    cleaned = cleaned.replace(/<\/(strong|b|em|i|u|s|sup|sub)>(\s*)<\1>/gi, (m, tag, sp) => sp || '');
+
+    // 2. Loop para remover prefixos simples ou repetidos (*A), A), *A) *A), etc.)
+    let prev;
+    do {
+      prev = cleaned;
+
+      // Caso 1: Tag inline abre e fecha contendo apenas o prefixo (ex: <strong>*A)</strong> texto)
+      cleaned = cleaned.replace(/^<([a-z0-9]+)[^>]*>\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*<\/\1>\s*/i, '');
+
+      // Caso 2: Tag inline abre com o prefixo e continua com o texto (ex: <strong>*A) texto</strong>)
+      cleaned = cleaned.replace(/^(<[a-z0-9]+[^>]*>)\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*/i, '$1');
+
+      // Caso 3: Prefixo em texto puro no início (ex: *A) texto ou * A) texto)
+      cleaned = cleaned.replace(/^\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*/i, '');
+
+    } while (cleaned !== prev);
+
+    // 3. Limpa tags vazias residuais no início (ex: <strong></strong>)
+    cleaned = cleaned.replace(/^<([a-z0-9]+)[^>]*>\s*<\/\1>\s*/gi, '');
+
+    return cleaned.trim();
+  },
+
+  /**
+   * Remove negrito que envolva 100% do texto da alternativa (usado como gabarito no Word),
+   * preservando formatações parciais semânticas internas (ex: <strong>SQL</strong> (Structured...)).
+   * @param {string} html
+   * @returns {string}
+   */
+  stripFullOptionBold(html) {
+    if (!html) return '';
+    let trimmed = html.trim();
+
+    let hasPWrapper = false;
+    const pMatch = trimmed.match(/^<p[^>]*>([\s\S]*)<\/p>$/i);
+    if (pMatch) {
+      trimmed = pMatch[1].trim();
+      hasPWrapper = true;
+    }
+
+    const match = trimmed.match(/^<(strong|b)[^>]*>([\s\S]*)<\/\1>$/i);
+    if (match) {
+      const inner = match[2];
+      // Se não houver fechamento intermediário da mesma tag (evita falso positivo de <strong>A</strong> e <strong>B</strong>)
+      if (!inner.includes(`</${match[1]}>`)) {
+        trimmed = inner.trim();
+      }
+    }
+
+    return hasPWrapper ? `<p>${trimmed}</p>` : trimmed;
   }
 };

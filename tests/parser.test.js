@@ -69,6 +69,42 @@ Pergunta com múltiplos asteriscos
       assert.strictEqual(parsed.options[1].isCorrect, false);
       assert.strictEqual(parsed.options[2].isCorrect, false);
     });
+
+    it('deve remover prefixos repetidos ou com formatação HTML inline fragmentada (*A) *A) ou <strong>*</strong><strong>A)</strong>)', () => {
+      const raw = `Questão 1
+A Inteligência Artificial é mais bem descrita como:
+*A) *A) Um campo da ciência da computação dedicado a sistemas capazes.
+B) Uma tecnologia única e padronizada.
+C) Um sistema robótico humanoide.
+Feedback: Resposta correta é a letra A.`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.options[0].isCorrect, true);
+      assert.strictEqual(parsed.options[0].letter, 'a');
+      assert.strictEqual(parsed.options[0].text, 'Um campo da ciência da computação dedicado a sistemas capazes.');
+
+      // Testa também com tags HTML fragmentadas
+      const htmlLine = '<p><strong>*</strong><strong>A)</strong> Um campo da computação.</p>';
+      const cleanLine = QuestionParser.cleanLineContent(htmlLine);
+      const stripped = QuestionParser.removeOptionPrefix(cleanLine);
+      assert.strictEqual(stripped, 'Um campo da computação.');
+    });
+
+    it('deve desmarcar negrito total da alternativa (gabarito do Word) mas preservar negrito semântico parcial', () => {
+      const raw = `<p><strong>Questão 1</strong></p>
+<p>Qual linguagem estiliza páginas web?</p>
+<p>*a) <strong>Uma linguagem de estilos padronizada.</strong></p>
+<p>b) <strong>CSS</strong> (Cascading Style Sheets)</p>
+<p>c) Uma linguagem de scripts.</p>`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      // Alternativa 'a' tinha 100% do texto em negrito -> remove o negrito total
+      assert.strictEqual(parsed.options[0].text, 'Uma linguagem de estilos padronizada.');
+      // Alternativa 'b' tinha apenas o termo CSS em negrito -> preserva o negrito parcial
+      assert.strictEqual(parsed.options[1].text, '<strong>CSS</strong> (Cascading Style Sheets)');
+    });
   });
 
   describe('Questões Discursivas', () => {

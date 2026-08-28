@@ -2,6 +2,7 @@ import { Logger } from './logger.js';
 import { QuestionParser } from './parser.js';
 import { ZipBuilder } from './qti/zipBuilder.js';
 import { QtiImporter } from './qti/qtiImporter.js';
+import { DocxImporter } from './docx/docxImporter.js';
 import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
@@ -41,6 +42,8 @@ function initElements() {
     btnAddQuestion: document.getElementById('btn-add-question'),
     btnClearInput: document.getElementById('btn-clear-input'),
     btnExportZip: document.getElementById('btn-export-zip'),
+    btnImportDocx: document.getElementById('btn-import-docx'),
+    inputFileDocx: document.getElementById('input-file-docx'),
     btnImportQti: document.getElementById('btn-import-qti'),
     inputFileQti: document.getElementById('input-file-qti'),
     btnClearAll: document.getElementById('btn-clear-all'),
@@ -70,6 +73,10 @@ export function questionToEditorHtml(q) {
     q.options.forEach(opt => {
       const prefix = opt.isCorrect ? `*${opt.letter.toUpperCase()})` : `${opt.letter.toUpperCase()})`;
       let optText = (opt.text || '').trim();
+      // Remove qualquer prefixo residual e negrito total antes de adicionar o prefixo do editor
+      optText = QuestionParser.removeOptionPrefix(optText);
+      optText = QuestionParser.stripFullOptionBold(optText);
+
       if (optText.startsWith('<p') || optText.startsWith('<div')) {
         optText = optText.replace(/^(<[a-z]+[^>]*>)/i, `$1<strong>${prefix}</strong> `);
         html += `${optText}\n`;
@@ -138,16 +145,22 @@ function init() {
   elements.btnClearInput.addEventListener('click', handleCancelOrClear);
   elements.btnBannerCancelEdit?.addEventListener('click', handleCancelOrClear);
 
-  // 5. Botão Importar Pacote QTI (.zip)
+  // 5. Botão Importar Word (.docx)
+  elements.btnImportDocx?.addEventListener('click', () => {
+    elements.inputFileDocx?.click();
+  });
+  elements.inputFileDocx?.addEventListener('change', handleImportDocxFile);
+
+  // 6. Botão Importar Pacote QTI (.zip)
   elements.btnImportQti?.addEventListener('click', () => {
     elements.inputFileQti?.click();
   });
   elements.inputFileQti?.addEventListener('change', handleImportQtiFile);
 
-  // 6. Botão Exportar Pacote QTI
+  // 7. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
 
-  // 7. Botão Limpar Tudo
+  // 8. Botão Limpar Tudo
   elements.btnClearAll.addEventListener('click', handleClearAll);
 
   // 7. Botões de Exemplos Rápidos
@@ -289,6 +302,43 @@ export function removeQuestion(index) {
 if (typeof window !== 'undefined') {
   window.editQuestion = editQuestion;
   window.removeQuestion = removeQuestion;
+}
+
+/**
+ * Importa um banco de questões a partir de um arquivo Word (.docx)
+ * e adiciona continuamente as questões à lista existente
+ */
+async function handleImportDocxFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  Logger.info(`Carregando documento Word: "${file.name}" (${(file.size / 1024).toFixed(1)} KB)...`);
+
+  try {
+    const startingIndex = state.questions.length + 1;
+    const result = await DocxImporter.importDocx(file, startingIndex);
+
+    if (result.questions && result.questions.length > 0) {
+      // Adiciona as questões importadas à lista existente (sem sobrescrever as atuais)
+      state.questions.push(...result.questions);
+
+      // Se o título estiver padrão e o documento trouxer um título descritivo, atualiza
+      if (result.title && state.title === 'Atividade Avaliativa') {
+        state.title = result.title;
+        if (elements.activityTitle) elements.activityTitle.value = result.title;
+      }
+
+      render();
+      Logger.success(`🎉 ${result.questions.length} questões importadas com sucesso do Word! Total no banco: ${state.questions.length} questões.`);
+    } else {
+      Logger.warn('Nenhuma questão válida foi identificada no arquivo Word.');
+    }
+  } catch (err) {
+    Logger.error(`Erro ao importar arquivo Word (.docx): ${err.message}`);
+    console.error(err);
+  } finally {
+    e.target.value = ''; // Reseta input para permitir reimportar se desejado
+  }
 }
 
 /**
