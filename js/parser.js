@@ -174,10 +174,11 @@ export const QuestionParser = {
     if (restoredOptions.length > 0) {
       // É Múltipla Escolha
       const correctCount = restoredOptions.filter(opt => opt.isCorrect).length;
+      let needsCorrectAnswerAdjustment = false;
 
       if (correctCount === 0) {
-        Logger.warn(`Atenção: Nenhuma alternativa com '*' foi marcada na "${restoredTitle}". Marcando a primeira por padrão.`);
-        restoredOptions[0].isCorrect = true;
+        Logger.warn(`Atenção: Nenhuma alternativa com '*' foi marcada na "${restoredTitle}". Ajustar alternativa correta.`);
+        needsCorrectAnswerAdjustment = true;
       } else if (correctCount > 1) {
         Logger.warn(`Atenção: Mais de uma alternativa marcada com '*' na "${restoredTitle}". Apenas a primeira marcada será mantida como correta.`);
         let foundFirst = false;
@@ -190,7 +191,8 @@ export const QuestionParser = {
       }
 
       const correctOpt = restoredOptions.find(opt => opt.isCorrect);
-      Logger.success(`Parse concluído: [Múltipla Escolha] "${restoredTitle}" com ${restoredOptions.length} alternativas (Correta: ${correctOpt ? correctOpt.letter.toUpperCase() : '?'}).`);
+      const statusStr = correctOpt ? `Correta: ${correctOpt.letter.toUpperCase()}` : 'Ajustar alternativa correta';
+      Logger.success(`Parse concluído: [Múltipla Escolha] "${restoredTitle}" com ${restoredOptions.length} alternativas (${statusStr}).`);
 
       return {
         id: nextIndex,
@@ -199,7 +201,8 @@ export const QuestionParser = {
         prompt: prompt,
         options: restoredOptions,
         modelAnswer: modelAnswer,
-        feedback: feedback
+        feedback: feedback,
+        needsCorrectAnswerAdjustment: needsCorrectAnswerAdjustment
       };
     } else {
       // É Discursiva

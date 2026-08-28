@@ -460,10 +460,16 @@ function render() {
     const badgeClass = isObj ? 'badge-obj' : 'badge-disc';
     const typeLabel = isObj ? 'Objetiva' : 'Discursiva';
     const isEditing = state.editingIndex === idx;
+    const needsAdjustment = isObj && (q.needsCorrectAnswerAdjustment || !q.options.some(opt => opt.isCorrect));
 
     let optionsHtml = '';
     if (isObj && q.options.length > 0) {
       optionsHtml = `
+        ${needsAdjustment ? `
+          <div class="q-warning-alert" style="background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 4px; font-size: 0.82rem; margin: 8px 0; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+            ⚠️ Ajustar alternativa correta (nenhuma alternativa com '*' foi sinalizada).
+          </div>
+        ` : ''}
         <ul class="q-options-list">
           ${q.options.map(opt => `
             <li class="${opt.isCorrect ? 'correct-opt' : ''}">
@@ -475,12 +481,13 @@ function render() {
     }
 
     return `
-      <div class="question-card ${isEditing ? 'question-card-editing' : ''}">
+      <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsAdjustment ? 'question-card-warning' : ''}">
         <div class="q-card-header">
           <div class="q-card-title">
             <span class="q-badge ${badgeClass}">${typeLabel}</span>
             <strong>${q.title}</strong>
-            ${isEditing ? '<span style="color: #2563eb; font-size: 0.78rem; font-weight: 600;">(Editando no momento)</span>' : ''}
+            ${needsAdjustment ? '<span class="badge-needs-adjustment" style="background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Ajustar alternativa correta</span>' : ''}
+            ${isEditing ? '<span style="color: #2563eb; font-size: 0.78rem; font-weight: 600; margin-left: 6px;">(Editando no momento)</span>' : ''}
           </div>
           <div class="q-card-actions">
             <button class="btn-card-action btn-edit" onclick="editQuestion(${idx})" title="Editar esta questão">✏️</button>

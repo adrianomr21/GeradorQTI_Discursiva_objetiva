@@ -44,7 +44,7 @@ d - Quarta opção`;
       assert.strictEqual(parsed.options[3].letter, 'd');
     });
 
-    it('deve marcar a primeira opção como correta caso nenhuma possua asterisco (*)', () => {
+    it('deve sinalizar "Ajustar alternativa correta" caso nenhuma possua asterisco (*)', () => {
       const raw = `Questão 1
 Pergunta sem asterisco
 a) Opção 1
@@ -52,8 +52,8 @@ b) Opção 2`;
 
       const parsed = QuestionParser.parse(raw, 1);
       assert.ok(parsed);
-      assert.strictEqual(parsed.options[0].isCorrect, true);
-      assert.strictEqual(parsed.options[1].isCorrect, false);
+      assert.strictEqual(parsed.needsCorrectAnswerAdjustment, true);
+      assert.strictEqual(parsed.options.some(opt => opt.isCorrect), false);
     });
 
     it('deve manter apenas a primeira opção se múltiplas forem marcadas com asterisco (*)', () => {
