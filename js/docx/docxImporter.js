@@ -8,6 +8,7 @@
 import { Logger } from '../logger.js';
 import { QuestionParser } from '../parser.js';
 import { HtmlSanitizer } from '../editor/htmlSanitizer.js';
+import { OmmlConverter } from './ommlConverter.js';
 
 export const DocxImporter = {
   /**
@@ -158,8 +159,8 @@ export const DocxImporter = {
   parseParagraph(pXml, mediaMap = {}) {
     let pContent = '';
 
-    // Varre runs (<w:r>), quebras (<w:br/>) e desenhos (<w:drawing>)
-    const runRegex = /<w:r[\s>][\s\S]*?<\/w:r>|<w:drawing[\s>][\s\S]*?<\/w:drawing>|<w:br(?:\s[^>]*)?\/>/gi;
+    // Varre runs (<w:r>), equações (<m:oMathPara>, <m:oMath>), quebras (<w:br/>), desenhos (<w:drawing>) e VML (<w:pict>)
+    const runRegex = /<m:oMathPara[\s>][\s\S]*?<\/m:oMathPara>|<m:oMath[\s>][\s\S]*?<\/m:oMath>|<w:r[\s>][\s\S]*?<\/w:r>|<w:drawing[\s>][\s\S]*?<\/w:drawing>|<w:pict[\s>][\s\S]*?<\/w:pict>|<w:br(?:\s[^>]*)?\/>/gi;
     let match;
 
     while ((match = runRegex.exec(pXml)) !== null) {
@@ -167,46 +168,66 @@ export const DocxImporter = {
 
       if (chunk.startsWith('<w:br')) {
         pContent += '<br />';
-      } else if (chunk.startsWith('<w:drawing')) {
-        const blipMatch = chunk.match(/r:embed=["']([^"']+)["']/i);
-        if (blipMatch && mediaMap[blipMatch[1]]) {
-          pContent += `<img src="${mediaMap[blipMatch[1]]}" style="max-width: 100%; height: auto;" />`;
-        }
-      } else {
-        // Run de texto <w:r>
-        const tMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
-        if (!tMatches) continue;
+        continue;
+      }
 
+      if (chunk.startsWith('<m:oMath')) {
+        const isDisplay = chunk.startsWith('<m:oMathPara');
+        const mathHtml = OmmlConverter.toHtml(chunk, isDisplay);
+        if (mathHtml) {
+          pContent += (pContent ? ' ' : '') + mathHtml;
+        }
+        continue;
+      }
+
+      // Verifica imagens embutidas (DrawingML ou VML) dentro ou fora de <w:r>
+      const blipMatch = chunk.match(/r:embed=["']([^"']+)["']|r:id=["']([^"']+)["']|o:relid=["']([^"']+)["']/i);
+      if (blipMatch) {
+        const rId = blipMatch[1] || blipMatch[2] || blipMatch[3];
+        if (rId && mediaMap[rId]) {
+          const extentMatch = chunk.match(/<wp:extent\s+cx=["'](\d+)["']\s+cy=["'](\d+)["']/i);
+          let dimStyle = 'max-width: 100%; height: auto;';
+          if (extentMatch) {
+            const widthPx = Math.round(parseInt(extentMatch[1], 10) / 9525);
+            if (widthPx > 0) dimStyle = `max-width: 100%; width: ${widthPx}px; height: auto;`;
+          }
+          pContent += `<img src="${mediaMap[rId]}" style="${dimStyle}" />`;
+        }
+      }
+
+      // Run de texto <w:t>
+      const tMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
+      if (tMatches) {
         let runText = '';
         for (const tMatch of tMatches) {
           const innerText = tMatch.replace(/<[^>]+>/g, '');
           runText += innerText;
         }
 
-        if (!runText) continue;
+        if (runText) {
+          // Escapa caracteres especiais básicos
+          let formatted = runText
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
 
-        // Escapa caracteres especiais básicos
-        let formatted = runText
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
+          // Aplica estilos de caractere
+          const hasBold = /<w:b(?:\s|\/|>)/i.test(chunk) && !/<w:b\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
+          const hasItalic = /<w:i(?:\s|\/|>)/i.test(chunk) && !/<w:i\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
+          const hasUnderline = /<w:u\s+[^>]*w:val=["'](?!none)/i.test(chunk);
+          const hasStrike = /<w:strike(?:\s|\/|>)/i.test(chunk);
+          const isSup = /<w:vertAlign\s+[^>]*w:val=["']superscript["']/i.test(chunk);
+          const isSub = /<w:vertAlign\s+[^>]*w:val=["']subscript["']/i.test(chunk);
 
-        // Aplica estilos de caractere
-        const hasBold = /<w:b(?:\s|\/|>)/i.test(chunk) && !/<w:b\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
-        const hasItalic = /<w:i(?:\s|\/|>)/i.test(chunk) && !/<w:i\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
-        const hasUnderline = /<w:u\s+[^>]*w:val=["'](?!none)/i.test(chunk);
-        const hasStrike = /<w:strike(?:\s|\/|>)/i.test(chunk);
-        const isSup = /<w:vertAlign\s+[^>]*w:val=["']superscript["']/i.test(chunk);
-        const isSub = /<w:vertAlign\s+[^>]*w:val=["']subscript["']/i.test(chunk);
+          if (hasBold) formatted = `<strong>${formatted}</strong>`;
+          if (hasItalic) formatted = `<em>${formatted}</em>`;
+          if (hasUnderline) formatted = `<u>${formatted}</u>`;
+          if (hasStrike) formatted = `<s>${formatted}</s>`;
+          if (isSup) formatted = `<sup>${formatted}</sup>`;
+          if (isSub) formatted = `<sub>${formatted}</sub>`;
 
-        if (hasBold) formatted = `<strong>${formatted}</strong>`;
-        if (hasItalic) formatted = `<em>${formatted}</em>`;
-        if (hasUnderline) formatted = `<u>${formatted}</u>`;
-        if (hasStrike) formatted = `<s>${formatted}</s>`;
-        if (isSup) formatted = `<sup>${formatted}</sup>`;
-        if (isSub) formatted = `<sub>${formatted}</sub>`;
-
-        pContent += formatted;
+          pContent += formatted;
+        }
       }
     }
 
@@ -265,8 +286,12 @@ export const DocxImporter = {
     for (let i = 0; i < Math.min(blocks.length, 3); i++) {
       const text = blocks[i].replace(/<[^>]+>/g, '').trim();
       if (!text) continue;
-      // Se não for cabeçalho de questão nem de seção, pode ser o título
-      if (!/^Quest[ãa]o\s*\d+/i.test(text) && !/^Parte\s+[I|V|X]+/i.test(text)) {
+      // Se encontrar uma questão logo no início, não há título geral antes das questões
+      if (/^Quest[ãa]o\s*\d+/i.test(text)) {
+        return null;
+      }
+      // Se for um título curto (não um parágrafo longo de enunciado)
+      if (!/^Parte\s+[I|V|X]+/i.test(text) && text.length < 100) {
         return text;
       }
     }

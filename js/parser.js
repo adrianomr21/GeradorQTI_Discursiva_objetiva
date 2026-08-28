@@ -14,8 +14,12 @@ export const QuestionParser = {
       return null;
     }
 
+    // 0. Protege blocos de fórmulas matemáticas (.qti-math, MathML, SVG) contra quebra de linhas e falsos-positivos de alternativas
+    const mathTokens = [];
+    const protectedInput = this.protectMathBlocks(rawInput, mathTokens);
+
     // Identifica se a entrada contém tags HTML
-    const isHtml = /<[a-z][\s\S]*>/i.test(rawInput);
+    const isHtml = /<[a-z][\s\S]*>/i.test(protectedInput);
     let normalized;
 
     if (isHtml) {
@@ -24,7 +28,7 @@ export const QuestionParser = {
       // 2. Converte quebras de bloco (</p>, </div>, </li>, </tr>, <br>) em marcador de nova linha
       // 3. Converte quebras de linha internas (\r\n) dentro de tags em espaço simples (como o HTML funciona)
       // 4. Converte o marcador de bloco de volta para quebras reais de linha
-      normalized = rawInput
+      normalized = protectedInput
         .replace(/&nbsp;/gi, ' ')
         .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
         .replace(/<\/(p|div|h[1-6]|blockquote)>/gi, '__BLOCK_DELIMITER__')
@@ -33,7 +37,7 @@ export const QuestionParser = {
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/__BLOCK_DELIMITER__/g, '\n');
     } else {
-      normalized = rawInput.replace(/\r\n|\r/g, '\n');
+      normalized = protectedInput.replace(/\r\n|\r/g, '\n');
     }
 
     const rawLines = normalized
@@ -82,7 +86,7 @@ export const QuestionParser = {
       const lineHtml = rawLines[lineIndex];
       const linePlain = this.stripHtml(lineHtml);
 
-      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('qti-math') && !lineHtml.includes('<math')) {
+      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
         continue;
       }
 
@@ -148,9 +152,18 @@ export const QuestionParser = {
       }
     }
 
-    const prompt = isHtml ? this.assembleBlockContent(promptLines) : promptLines.join('\n');
-    const modelAnswer = isHtml ? this.assembleBlockContent(modelAnswerLines) : modelAnswerLines.join('\n');
-    const feedback = isHtml ? this.assembleBlockContent(feedbackLines) : feedbackLines.join('\n');
+    const rawPrompt = isHtml ? this.assembleBlockContent(promptLines) : promptLines.join('\n');
+    const rawModelAnswer = isHtml ? this.assembleBlockContent(modelAnswerLines) : modelAnswerLines.join('\n');
+    const rawFeedback = isHtml ? this.assembleBlockContent(feedbackLines) : feedbackLines.join('\n');
+
+    const prompt = this.restoreMathTokens(rawPrompt, mathTokens);
+    const modelAnswer = this.restoreMathTokens(rawModelAnswer, mathTokens);
+    const feedback = this.restoreMathTokens(rawFeedback, mathTokens);
+    const restoredTitle = this.restoreMathTokens(title, mathTokens);
+    const restoredOptions = options.map(opt => ({
+      ...opt,
+      text: this.restoreMathTokens(opt.text, mathTokens)
+    }));
 
     if (!prompt.trim() || prompt === '<p></p>') {
       Logger.error('Não foi possível identificar o enunciado da questão.');
@@ -158,17 +171,17 @@ export const QuestionParser = {
     }
 
     // 3. Determina se é Múltipla Escolha ou Discursiva
-    if (options.length > 0) {
+    if (restoredOptions.length > 0) {
       // É Múltipla Escolha
-      const correctCount = options.filter(opt => opt.isCorrect).length;
+      const correctCount = restoredOptions.filter(opt => opt.isCorrect).length;
 
       if (correctCount === 0) {
-        Logger.warn(`Atenção: Nenhuma alternativa com '*' foi marcada na "${title}". Marcando a primeira por padrão.`);
-        options[0].isCorrect = true;
+        Logger.warn(`Atenção: Nenhuma alternativa com '*' foi marcada na "${restoredTitle}". Marcando a primeira por padrão.`);
+        restoredOptions[0].isCorrect = true;
       } else if (correctCount > 1) {
-        Logger.warn(`Atenção: Mais de uma alternativa marcada com '*' na "${title}". Apenas a primeira marcada será mantida como correta.`);
+        Logger.warn(`Atenção: Mais de uma alternativa marcada com '*' na "${restoredTitle}". Apenas a primeira marcada será mantida como correta.`);
         let foundFirst = false;
-        options.forEach(opt => {
+        restoredOptions.forEach(opt => {
           if (opt.isCorrect) {
             if (!foundFirst) foundFirst = true;
             else opt.isCorrect = false;
@@ -176,15 +189,15 @@ export const QuestionParser = {
         });
       }
 
-      const correctOpt = options.find(opt => opt.isCorrect);
-      Logger.success(`Parse concluído: [Múltipla Escolha] "${title}" com ${options.length} alternativas (Correta: ${correctOpt ? correctOpt.letter.toUpperCase() : '?'}).`);
+      const correctOpt = restoredOptions.find(opt => opt.isCorrect);
+      Logger.success(`Parse concluído: [Múltipla Escolha] "${restoredTitle}" com ${restoredOptions.length} alternativas (Correta: ${correctOpt ? correctOpt.letter.toUpperCase() : '?'}).`);
 
       return {
         id: nextIndex,
         type: 'multiple_choice',
-        title: title,
+        title: restoredTitle,
         prompt: prompt,
-        options: options,
+        options: restoredOptions,
         modelAnswer: modelAnswer,
         feedback: feedback
       };
@@ -195,18 +208,121 @@ export const QuestionParser = {
       if (feedback) details.push('com Feedback');
       const detailsStr = details.length > 0 ? ` (${details.join(', ')})` : '';
 
-      Logger.success(`Parse concluído: [Discursiva] "${title}"${detailsStr}.`);
+      Logger.success(`Parse concluído: [Discursiva] "${restoredTitle}"${detailsStr}.`);
 
       return {
         id: nextIndex,
         type: 'discursive',
-        title: title,
+        title: restoredTitle,
         prompt: prompt,
         options: [],
         modelAnswer: modelAnswer,
         feedback: feedback
       };
     }
+  },
+
+  /**
+   * Protege blocos de fórmulas matemáticas (.qti-math, MathML, SVG) substituindo por tokens atômicos.
+   * @param {string} html
+   * @param {Array<string>} mathTokens
+   * @returns {string}
+   */
+  protectMathBlocks(html, mathTokens = []) {
+    if (!html) return '';
+    let result = '';
+    let i = 0;
+    while (i < html.length) {
+      const mathIdx = html.indexOf('<span class="qti-math', i);
+      const mathIdx2 = html.indexOf("<span class='qti-math", i);
+      let startIdx = -1;
+      if (mathIdx !== -1 && mathIdx2 !== -1) startIdx = Math.min(mathIdx, mathIdx2);
+      else if (mathIdx !== -1) startIdx = mathIdx;
+      else if (mathIdx2 !== -1) startIdx = mathIdx2;
+
+      const svgIdx = html.indexOf('<svg', i);
+      const mathmlIdx = html.indexOf('<math', i);
+      let tagType = 'span';
+      let minStart = startIdx;
+
+      if (svgIdx !== -1 && (minStart === -1 || svgIdx < minStart)) {
+        minStart = svgIdx;
+        tagType = 'svg';
+      }
+      if (mathmlIdx !== -1 && (minStart === -1 || mathmlIdx < minStart)) {
+        minStart = mathmlIdx;
+        tagType = 'math';
+      }
+
+      if (minStart === -1) {
+        result += html.substring(i);
+        break;
+      }
+
+      result += html.substring(i, minStart);
+
+      if (tagType === 'span') {
+        let depth = 0;
+        let pos = minStart;
+        let endPos = -1;
+        while (pos < html.length) {
+          const openSpan = html.indexOf('<span', pos);
+          const closeSpan = html.indexOf('</span>', pos);
+          if (closeSpan === -1) break;
+          if (openSpan !== -1 && openSpan < closeSpan) {
+            depth++;
+            pos = openSpan + 5;
+          } else {
+            depth--;
+            pos = closeSpan + 7;
+            if (depth === 0) {
+              endPos = pos;
+              break;
+            }
+          }
+        }
+        if (endPos !== -1) {
+          const fullSpan = html.substring(minStart, endPos);
+          const token = `__QTI_MATH_TOKEN_${mathTokens.length}__`;
+          mathTokens.push(fullSpan);
+          result += token;
+          i = endPos;
+        } else {
+          result += html.substring(minStart, minStart + 5);
+          i = minStart + 5;
+        }
+      } else {
+        const closingTag = `</${tagType}>`;
+        const closeIdx = html.indexOf(closingTag, minStart);
+        if (closeIdx !== -1) {
+          const endPos = closeIdx + closingTag.length;
+          const fullTag = html.substring(minStart, endPos);
+          const token = `__QTI_MATH_TOKEN_${mathTokens.length}__`;
+          mathTokens.push(fullTag);
+          result += token;
+          i = endPos;
+        } else {
+          result += html.substring(minStart, minStart + tagType.length + 1);
+          i = minStart + tagType.length + 1;
+        }
+      }
+    }
+    return result;
+  },
+
+  /**
+   * Restaura os tokens de fórmulas matemáticas de volta ao HTML original.
+   * @param {string} str
+   * @param {Array<string>} mathTokens
+   * @returns {string}
+   */
+  restoreMathTokens(str, mathTokens) {
+    if (!str || !mathTokens || mathTokens.length === 0) return str || '';
+    let res = str;
+    mathTokens.forEach((tokenHtml, idx) => {
+      res = res.replaceAll(`__QTI_MATH_TOKEN_${idx}__`, tokenHtml);
+    });
+    return res;
   },
 
   /**

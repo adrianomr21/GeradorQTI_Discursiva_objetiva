@@ -34,7 +34,7 @@ export const ItemBuilder = {
 
     // Monta as tags <simpleChoice>
     const choicesXml = question.options.map(opt => {
-      let content = opt.text.trim();
+      let content = XmlHelpers.cleanMathForQti(opt.text.trim());
       if (!content.startsWith('<p') && !content.startsWith('<div')) {
         content = `<p>${content}</p>`;
       }
