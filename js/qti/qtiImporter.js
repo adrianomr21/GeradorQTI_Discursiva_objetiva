@@ -90,13 +90,23 @@ export const QtiImporter = {
           else if (matchedExt === '.webp') mime = 'image/webp';
 
           const dataUrl = `data:${mime};base64,${base64Data}`;
-          const baseName = key.split('/').pop();
+          const baseName = key.split('/').pop().split('\\').pop();
+          let decodedBaseName = baseName;
+          try {
+            decodedBaseName = decodeURIComponent(baseName);
+          } catch (e) {}
 
-          // Mapeia diferentes variações de caminhos relativos
+          // Mapeia todas as variações de caminhos relativos possíveis
           imageMap[key] = dataUrl;
           imageMap[baseName] = dataUrl;
+          imageMap[decodedBaseName] = dataUrl;
+          imageMap[`../${key}`] = dataUrl;
+          imageMap[`./${key}`] = dataUrl;
+          imageMap[`/${key}`] = dataUrl;
           imageMap[`../${baseName}`] = dataUrl;
           imageMap[`./${baseName}`] = dataUrl;
+          imageMap[`Mathbbqti_spImages/${baseName}`] = dataUrl;
+          imageMap[`../Mathbbqti_spImages/${baseName}`] = dataUrl;
           imageMap[`csfiles/home_dir/${baseName}`] = dataUrl;
           imageMap[`../csfiles/home_dir/${baseName}`] = dataUrl;
 
@@ -186,6 +196,61 @@ export const QtiImporter = {
   },
 
   /**
+   * Substitui referências de imagens por Data URLs em Base64 de forma resiliente a caminhos relativos.
+   * @param {string} xmlText
+   * @param {Object} imageMap
+   * @returns {string}
+   */
+  replaceImageSources(xmlText, imageMap) {
+    if (!xmlText) return '';
+    if (!imageMap || Object.keys(imageMap).length === 0) return xmlText;
+
+    let xml = xmlText;
+
+    // 1. Substitui tags <img> ou <object> correspondendo caminhos
+    xml = xml.replace(/(<(?:img|object|image)[^>]*(?:src|data|href)=["'])([^"']+)(["'][^>]*>)/gi, (fullMatch, prefix, srcPath, suffix) => {
+      if (srcPath.startsWith('data:image')) {
+        return fullMatch;
+      }
+
+      const cleanPath = srcPath.replace(/^(\.\.\/|\.\/|\/)+/, '');
+      const baseName = srcPath.split('/').pop().split('\\').pop();
+      let decodedBaseName = baseName;
+      try {
+        decodedBaseName = decodeURIComponent(baseName);
+      } catch (e) {}
+
+      const dataUrl = imageMap[srcPath] ||
+                      imageMap[cleanPath] ||
+                      imageMap[baseName] ||
+                      imageMap[decodedBaseName] ||
+                      imageMap[`../${cleanPath}`] ||
+                      imageMap[`Mathbbqti_spImages/${baseName}`] ||
+                      imageMap[`csfiles/home_dir/${baseName}`];
+
+      if (dataUrl) {
+        return `${prefix}${dataUrl}${suffix}`;
+      }
+      return fullMatch;
+    });
+
+    // 2. Substitui qualquer chave restante
+    for (const [imgPath, dataUrl] of Object.entries(imageMap)) {
+      if (imgPath && imgPath.length > 3) {
+        xml = xml.split(imgPath).join(dataUrl);
+      }
+    }
+
+    // 3. Garante que qualquer resíduo '../data:image' ou './data:image' vire 'data:image'
+    xml = xml.replace(/(src|data|href)=["'](?:\.\.\/|\.\/|\/)*(data:image\/[^"']+)["']/gi, '$1="$2"');
+
+    // 4. Remove tags de fechamento </img> órfãs do Blackboard
+    xml = xml.replace(/<\/img>/gi, '');
+
+    return xml;
+  },
+
+  /**
    * Analisa o XML de um assessmentItem e retorna o objeto de questão padronizado.
    * @param {string} xmlText - Conteúdo XML do assessmentItem
    * @param {number} questionIndex - Número da questão
@@ -195,12 +260,7 @@ export const QtiImporter = {
   parseAssessmentItem(xmlText, questionIndex = 1, imageMap = {}) {
     if (!xmlText) return null;
 
-    let xml = xmlText;
-
-    // Substitui caminhos de imagem por seus respectivos Data URLs em Base64
-    for (const [imgPath, dataUrl] of Object.entries(imageMap)) {
-      xml = xml.split(imgPath).join(dataUrl);
-    }
+    let xml = this.replaceImageSources(xmlText, imageMap);
 
     const isMultipleChoice = xml.includes('<choiceInteraction');
     const isDiscursive = xml.includes('<extendedTextInteraction') || !isMultipleChoice;
@@ -318,9 +378,15 @@ export const QtiImporter = {
     // Se estiver envolto em <div> único externo, remove a tag div externa
     clean = clean.replace(/^<div>([\s\S]*)<\/div>$/i, '$1').trim();
 
+    // Remove tags de fechamento </img> órfãs do Blackboard
+    clean = clean.replace(/<\/img>/gi, '');
+
     // Substitui entidades comuns do QTI
     clean = clean.replace(/&#xa0;/gi, ' ');
     clean = clean.replace(/&apos;/g, "'");
+
+    // Garante que qualquer resíduo '../data:image' ou './data:image' vire 'data:image'
+    clean = clean.replace(/(src|data|href)=["'](?:\.\.\/|\.\/|\/)*(data:image\/[^"']+)["']/gi, '$1="$2"');
 
     return HtmlSanitizer.cleanHtml(clean);
   }

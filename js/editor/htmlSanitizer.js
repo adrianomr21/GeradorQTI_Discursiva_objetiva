@@ -48,7 +48,9 @@ export const HtmlSanitizer = {
     clean = clean.replace(/<b(\s+[^>]*)?>/gi, '<strong>').replace(/<\/b>/gi, '</strong>');
     clean = clean.replace(/<i(\s+[^>]*)?>/gi, '<em>').replace(/<\/i>/gi, '</em>');
 
-    // 5. Remove spans vazios ou redundantes
+    // 5. Remove spans vazios ou redundantes e tags </img> órfãs
+    clean = clean.replace(/<\/img>/gi, '');
+    clean = clean.replace(/(?:src|data)=["'](?:\.\.\/|\.\/|\/)*(data:image\/[^"']+)["']/gi, 'src="$1"');
     clean = clean.replace(/<span\s*>([\s\S]*?)<\/span>/gi, '$1');
     clean = clean.replace(/<span>([\s\S]*?)<\/span>/gi, '$1');
     clean = clean.replace(/<p\s*>([\s\S]*?)<\/p>/gi, '<p>$1</p>');

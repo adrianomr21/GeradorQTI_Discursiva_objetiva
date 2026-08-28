@@ -107,17 +107,22 @@ describe('QtiImporter Module', () => {
     assert.ok(parsed.prompt.includes('data:image/png;base64,iVBORw0KGgo'));
   });
 
-  it('deve importar com sucesso um arquivo ZIP de exemplo da pasta ExemplosQti', async () => {
-    const sampleZipPath = 'ExemplosQti/Pool_ExportFile_Pool_ExportFile_FUNDAMENTOS_DA_INTELIGENCIA_ARTIFICIAL_PARA_A_GESTAO___avaliacao_discursiva_presencial_vs2.zip';
-    if (fs.existsSync(sampleZipPath)) {
-      const zipBuffer = fs.readFileSync(sampleZipPath);
+  it('deve importar com sucesso o pacote de cálculo e converter fórmula em imagem para DataURL limpa', async () => {
+    const calculoZipPath = 'ExemplosQti/Pool_ExportFile_master_calculo_Atividade Avaliativa Discursiva On-Line.zip';
+    if (fs.existsSync(calculoZipPath)) {
+      const zipBuffer = fs.readFileSync(calculoZipPath);
       const result = await QtiImporter.importZip(zipBuffer, 1);
       assert.ok(result);
-      assert.strictEqual(Array.isArray(result.questions), true);
-      assert.strictEqual(result.questions.length, 5);
-      assert.strictEqual(result.questions[0].type, 'discursive');
-      assert.ok(result.questions[0].prompt.includes('Inteligência Artificial'));
-      assert.ok(result.questions[0].modelAnswer.includes('abordagem simbólica'));
+      assert.strictEqual(result.questions.length, 2);
+      
+      const q2 = result.questions[1];
+      assert.strictEqual(q2.type, 'discursive');
+      assert.strictEqual(q2.title, 'Questão 2');
+      assert.ok(q2.prompt.includes('Dado o sistema:'));
+      // Garante que a imagem é uma Data URL válida sem '../'
+      assert.ok(q2.prompt.includes('src="data:image/png;base64,iVBORw0KGgo'));
+      assert.ok(!q2.prompt.includes('../data:image'));
+      assert.ok(!q2.prompt.includes('</img>'));
     }
   });
 });
