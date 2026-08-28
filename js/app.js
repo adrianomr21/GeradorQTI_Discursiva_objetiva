@@ -1,6 +1,7 @@
 import { Logger } from './logger.js';
 import { QuestionParser } from './parser.js';
 import { ZipBuilder } from './qti/zipBuilder.js';
+import { QtiImporter } from './qti/qtiImporter.js';
 import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
@@ -40,6 +41,8 @@ function initElements() {
     btnAddQuestion: document.getElementById('btn-add-question'),
     btnClearInput: document.getElementById('btn-clear-input'),
     btnExportZip: document.getElementById('btn-export-zip'),
+    btnImportQti: document.getElementById('btn-import-qti'),
+    inputFileQti: document.getElementById('input-file-qti'),
     btnClearAll: document.getElementById('btn-clear-all'),
     btnSampleObj: document.getElementById('btn-sample-obj'),
     btnSampleDisc: document.getElementById('btn-sample-disc'),
@@ -135,10 +138,16 @@ function init() {
   elements.btnClearInput.addEventListener('click', handleCancelOrClear);
   elements.btnBannerCancelEdit?.addEventListener('click', handleCancelOrClear);
 
-  // 5. Botão Exportar Pacote QTI
+  // 5. Botão Importar Pacote QTI (.zip)
+  elements.btnImportQti?.addEventListener('click', () => {
+    elements.inputFileQti?.click();
+  });
+  elements.inputFileQti?.addEventListener('change', handleImportQtiFile);
+
+  // 6. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
 
-  // 6. Botão Limpar Tudo
+  // 7. Botão Limpar Tudo
   elements.btnClearAll.addEventListener('click', handleClearAll);
 
   // 7. Botões de Exemplos Rápidos
@@ -280,6 +289,42 @@ export function removeQuestion(index) {
 if (typeof window !== 'undefined') {
   window.editQuestion = editQuestion;
   window.removeQuestion = removeQuestion;
+}
+
+/**
+ * Importa um pacote QTI 2.1 (.zip) e adiciona continuamente as questões à lista existente
+ */
+async function handleImportQtiFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  Logger.info(`Carregando pacote QTI: "${file.name}" (${(file.size / 1024).toFixed(1)} KB)...`);
+
+  try {
+    const startingIndex = state.questions.length + 1;
+    const result = await QtiImporter.importZip(file, startingIndex);
+
+    if (result.questions && result.questions.length > 0) {
+      // Adiciona as questões importadas à lista existente (sem sobrescrever as atuais)
+      state.questions.push(...result.questions);
+
+      // Se o título estiver padrão e o pacote trouxer um título descritivo, atualiza
+      if (result.title && state.title === 'Atividade Avaliativa') {
+        state.title = result.title;
+        if (elements.activityTitle) elements.activityTitle.value = result.title;
+      }
+
+      render();
+      Logger.success(`🎉 ${result.questions.length} questões importadas e adicionadas com sucesso! Total no banco: ${state.questions.length} questões.`);
+    } else {
+      Logger.warn('Nenhuma questão válida foi encontrada no pacote importado.');
+    }
+  } catch (err) {
+    Logger.error(`Erro ao importar pacote QTI: ${err.message}`);
+    console.error(err);
+  } finally {
+    e.target.value = ''; // Reseta input para permitir reimportar o mesmo arquivo se desejado
+  }
 }
 
 /**

@@ -475,6 +475,14 @@ header p {
   background-color: var(--primary-hover);
 }
 
+.btn-secondary {
+  background-color: #0f766e;
+  color: #fff;
+}
+.btn-secondary:hover {
+  background-color: #115e59;
+}
+
 .btn-success {
   background-color: var(--success);
   color: #fff;

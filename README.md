@@ -27,8 +27,11 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
   - **Feedback para o aluno**: mapeado em `<modalFeedback>`, visível após a entrega/correção.
 - **Identificadores Padronizados**:
   - Questões numeradas como `QUE__00001`, `QUE__00002`, correspondendo ao arquivo Word de backup.
-- **Monitor de Logs**:
-  - Terminal visual na interface com rastreamento detalhado de cada etapa (parse, montagem de XML, empacotamento).
+- **Importação de Pacotes QTI (.zip)**:
+  - Botão **`📥 Importar Pacote QTI (.zip)`** para carregar pacotes prontos de questões.
+  - **Adição Contínua**: Adiciona todas as questões do pacote ao banco atual sem sobrescrever ou apagar as já cadastradas.
+  - **Extração Completa**: Converte imagens embutidas no pacote para Data URLs Base64, preservando layout e permitindo visualização e re-exportação.
+  - Reconhece tanto questões Objetivas (com alternativas e gabarito) quanto Discursivas (com Padrão de Resposta e Feedback).
 - **Exportação Client-Side Direta**:
   - Empacota automaticamente XMLs e imagens binárias no `.zip` diretamente no navegador.
 
@@ -62,11 +65,13 @@ GeradorQTI_Discursiva_objetiva/
 │       ├── itemBuilder.js       # Gerador do assessmentItem0000X.xml (Objetiva e Discursiva)
 │       ├── testBuilder.js       # Gerador do question_bank00001.xml (agrupador de teste)
 │       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice, recursos e mídias)
-│       └── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
-├── tests/                       # Suíte de testes automatizados (46 testes unitários)
+│       ├── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
+│       └── qtiImporter.js       # Descompactador e leitor de pacotes QTI 2.1 (.zip)
+├── tests/                       # Suíte de testes automatizados (50 testes unitários)
 │   ├── parser.test.js
 │   ├── richParser.test.js
 │   ├── editQuestion.test.js
+│   ├── qtiImporter.test.js
 │   ├── tableHelper.test.js
 │   ├── imageHelper.test.js
 │   ├── htmlSanitizer.test.js
