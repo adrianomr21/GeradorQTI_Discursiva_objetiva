@@ -1,0 +1,20 @@
+{
+  "name": "gerador-qti-modular",
+  "version": "1.0.0",
+  "description": "Gerador de Pacotes IMS QTI 2.1 para questões objetivas e discursivas",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "qti",
+    "qti21",
+    "lms",
+    "blackboard",
+    "canvas",
+    "moodle",
+    "assessment"
+  ],
+  "author": "",
+  "license": "MIT"
+}

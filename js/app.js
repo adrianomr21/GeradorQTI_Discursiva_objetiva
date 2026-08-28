@@ -1,12 +1,7 @@
-/**
- * app.js
- * Controlador principal da aplicação.
- * Conecta os eventos da interface com os módulos de Parser, QTI e Logger.
- */
-
 import { Logger } from './logger.js';
 import { QuestionParser } from './parser.js';
 import { ZipBuilder } from './qti/zipBuilder.js';
+import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
 const state = {
@@ -16,29 +11,27 @@ const state = {
 
 // Exemplos pré-configurados para teste rápido
 const SAMPLES = {
-  objective: `Questão 1
-Qual das seguintes linguagens é padrão para manipulação de bancos de dados relacionais?
-*a) SQL
-b) HTML
-c) CSS
-d) Python
-e) JSON
-Feedback: SQL (Structured Query Language) é a linguagem padrão utilizada para consultas e manipulações em bancos de dados relacionais.`,
+  objective: `<p><strong>Questão 1</strong></p>
+<p>Qual das seguintes linguagens é padrão para manipulação de bancos de dados relacionais?</p>
+<p>*a) <strong>SQL</strong> (Structured Query Language)</p>
+<p>b) HTML</p>
+<p>c) CSS</p>
+<p>d) Python</p>
+<p>e) JSON</p>
+<p><strong>Feedback:</strong></p>
+<p>SQL é a linguagem padrão utilizada para consultas e manipulações em bancos de dados relacionais.</p>`,
 
-  discursive: `Questão 2
-Explique a importância da normalização de dados (1FN, 2FN e 3FN) no projeto de bancos de dados relacionais e cite um benefício prático.
-
-Padrão de resposta:
-A normalização é o processo de organização dos dados para minimizar redundâncias e dependências incoerentes. O benefício prático inclui maior integridade dos dados e otimização do espaço em disco.
-
-Feedback:
-Muito bem! A resposta deve destacar a eliminação de anomalias de inserção, alteração e exclusão.`
+  discursive: `<p><strong>Questão 2</strong></p>
+<p>Explique a importância da normalização de dados (1FN, 2FN e 3FN) no projeto de bancos de dados relacionais e cite um benefício prático.</p>
+<p><strong>Padrão de resposta:</strong></p>
+<p>A normalização é o processo de organização dos dados para minimizar redundâncias e dependências incoerentes. O benefício prático inclui maior integridade dos dados e otimização do espaço em disco.</p>
+<p><strong>Feedback:</strong></p>
+<p>Muito bem! A resposta deve destacar a eliminação de anomalias de inserção, alteração e exclusão.</p>`
 };
 
 // Elementos da Interface
 const elements = {
   activityTitle: document.getElementById('activity-title'),
-  questionInput: document.getElementById('question-input'),
   btnAddQuestion: document.getElementById('btn-add-question'),
   btnClearInput: document.getElementById('btn-clear-input'),
   btnExportZip: document.getElementById('btn-export-zip'),
@@ -55,45 +48,65 @@ const elements = {
  * Inicializa a aplicação e registra os eventos
  */
 function init() {
-  Logger.info('Sistema Gerador QTI 2.1 inicializado com sucesso.');
-
-  // Botão Adicionar Questão
-  elements.btnAddQuestion.addEventListener('click', handleAddQuestion);
-
-  // Botão Limpar Entrada
-  elements.btnClearInput.addEventListener('click', () => {
-    elements.questionInput.value = '';
-    elements.questionInput.focus();
-    Logger.info('Campo de texto limpo.');
+  // 1. Inicializa o Editor de Texto Rico
+  RichTextEditor.init({
+    editorId: 'editor-content',
+    sourceId: 'editor-source',
+    imageInputId: 'editor-image-input'
   });
 
-  // Botão Exportar Pacote QTI
+  // 2. Conecta os botões da barra de ferramentas do Editor
+  document.getElementById('btn-tool-bold')?.addEventListener('click', () => RichTextEditor.execCmd('bold'));
+  document.getElementById('btn-tool-italic')?.addEventListener('click', () => RichTextEditor.execCmd('italic'));
+  document.getElementById('btn-tool-underline')?.addEventListener('click', () => RichTextEditor.execCmd('underline'));
+  document.getElementById('btn-tool-strike')?.addEventListener('click', () => RichTextEditor.execCmd('strikeThrough'));
+  document.getElementById('btn-tool-sup')?.addEventListener('click', () => RichTextEditor.execCmd('superscript'));
+  document.getElementById('btn-tool-sub')?.addEventListener('click', () => RichTextEditor.execCmd('subscript'));
+  document.getElementById('btn-tool-ul')?.addEventListener('click', () => RichTextEditor.execCmd('insertUnorderedList'));
+  document.getElementById('btn-tool-ol')?.addEventListener('click', () => RichTextEditor.execCmd('insertOrderedList'));
+  document.getElementById('btn-tool-table')?.addEventListener('click', () => RichTextEditor.insertTable(3, 3));
+  document.getElementById('btn-tool-link')?.addEventListener('click', () => RichTextEditor.insertLink());
+  document.getElementById('btn-tool-image')?.addEventListener('click', () => RichTextEditor.triggerImageUpload());
+  document.getElementById('btn-tool-clear')?.addEventListener('click', () => RichTextEditor.clearFormatting());
+  document.getElementById('btn-tool-source')?.addEventListener('click', () => RichTextEditor.toggleSourceMode());
+
+  // 3. Botão Adicionar Questão
+  elements.btnAddQuestion.addEventListener('click', handleAddQuestion);
+
+  // 4. Botão Limpar Entrada
+  elements.btnClearInput.addEventListener('click', () => {
+    RichTextEditor.clear();
+    Logger.info('Editor de texto limpo.');
+  });
+
+  // 5. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
 
-  // Botão Limpar Tudo
+  // 6. Botão Limpar Tudo
   elements.btnClearAll.addEventListener('click', handleClearAll);
 
-  // Botões de Exemplos Rápidos
+  // 7. Botões de Exemplos Rápidos
   elements.btnSampleObj.addEventListener('click', () => {
-    elements.questionInput.value = SAMPLES.objective;
-    Logger.info('Exemplo de questão Objetiva carregado no editor.');
+    RichTextEditor.setHtml(SAMPLES.objective);
+    Logger.info('Exemplo formatado de questão Objetiva carregado no editor.');
   });
 
   elements.btnSampleDisc.addEventListener('click', () => {
-    elements.questionInput.value = SAMPLES.discursive;
-    Logger.info('Exemplo de questão Discursiva carregado no editor.');
+    RichTextEditor.setHtml(SAMPLES.discursive);
+    Logger.info('Exemplo formatado de questão Discursiva carregado no editor.');
   });
 
-  // Botão Limpar Logs
+  // 8. Botão Limpar Logs
   elements.btnClearLogs.addEventListener('click', () => {
     Logger.clear();
   });
 
-  // Alteração do título da atividade
+  // 9. Alteração do título da atividade
   elements.activityTitle.addEventListener('input', (e) => {
     state.title = e.target.value.trim() || 'Atividade Avaliativa';
   });
 
+  Logger.info('Sistema Gerador QTI 2.1 inicializado com sucesso.');
   render();
 }
 
@@ -101,18 +114,18 @@ function init() {
  * Adiciona a questão colada ao estado (JSON)
  */
 function handleAddQuestion() {
-  const text = elements.questionInput.value.trim();
-  if (!text) {
-    Logger.warn('Por favor, cole ou digite o texto da questão antes de adicionar.');
+  const content = RichTextEditor.getHtml().trim();
+  if (!content) {
+    Logger.warn('Por favor, digite ou cole o conteúdo da questão antes de adicionar.');
     return;
   }
 
   const nextIndex = state.questions.length + 1;
-  const parsed = QuestionParser.parse(text, nextIndex);
+  const parsed = QuestionParser.parse(content, nextIndex);
 
   if (parsed) {
     state.questions.push(parsed);
-    elements.questionInput.value = '';
+    RichTextEditor.clear();
     render();
     Logger.success(`Questão #${parsed.id} adicionada à lista.`);
   }

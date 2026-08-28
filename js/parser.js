@@ -1,30 +1,45 @@
-/**
- * parser.js
- * Módulo responsável por analisar o texto colado da questão e convertê-lo
- * em um objeto estruturado (JSON).
- */
-
 import { Logger } from './logger.js';
+import { HtmlSanitizer } from './editor/htmlSanitizer.js';
 
 export const QuestionParser = {
   /**
-   * Converte o texto bruto da questão em um objeto estruturado.
-   * @param {string} rawText - Texto bruto colado no editor
+   * Converte o texto bruto ou HTML da questão em um objeto estruturado.
+   * @param {string} rawInput - Texto bruto ou HTML colado no editor
    * @param {number} nextIndex - Número sequencial da questão
    * @returns {Object|null} Objeto da questão ou null se inválido
    */
-  parse(rawText, nextIndex = 1) {
-    if (!rawText || !rawText.trim()) {
+  parse(rawInput, nextIndex = 1) {
+    if (!rawInput || !rawInput.trim()) {
       Logger.error('O texto da questão está vazio.');
       return null;
     }
 
-    const lines = rawText
+    // Identifica se a entrada contém tags HTML
+    const isHtml = /<[a-z][\s\S]*>/i.test(rawInput);
+    let normalized;
+
+    if (isHtml) {
+      // Normalização Inteligente de HTML (Word / Navegador):
+      // 1. Substitui espaços especiais (&nbsp;) por espaços normais
+      // 2. Converte quebras de bloco (</p>, </div>, </li>, </tr>, <br>) em marcador de nova linha
+      // 3. Converte quebras de linha internas (\r\n) dentro de tags em espaço simples (como o HTML funciona)
+      // 4. Converte o marcador de bloco de volta para quebras reais de linha
+      normalized = rawInput
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
+        .replace(/<\/(p|div|li|tr|h[1-6]|table|blockquote)>/gi, '__BLOCK_DELIMITER__')
+        .replace(/\r\n|\r|\n/g, ' ')
+        .replace(/__BLOCK_DELIMITER__/g, '\n');
+    } else {
+      normalized = rawInput.replace(/\r\n|\r/g, '\n');
+    }
+
+    const rawLines = normalized
       .split('\n')
-      .map(line => line.trim())
+      .map(line => this.cleanLineContent(line))
       .filter(line => line.length > 0);
 
-    if (lines.length === 0) {
+    if (rawLines.length === 0) {
       Logger.error('Nenhuma linha válida encontrada no texto.');
       return null;
     }
@@ -38,92 +53,102 @@ export const QuestionParser = {
     let feedbackLines = [];
     let currentSection = 'prompt'; // 'prompt' | 'modelAnswer' | 'feedback' | 'options'
 
-    // Expressão regular rigorosa para alternativas:
-    // Ex: *a) Texto, b) Texto, *A. Texto, c - Texto, (d) Texto, etc.
-    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))\s+(.*)$/;
+    // Expressão regular para alternativas no texto plano:
+    // Aceita tanto com texto na mesma linha quanto com texto nas linhas seguintes
+    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))(?:\s+(.*)|\s*)$/;
 
-    // Expressão regular para identificar início de Padrão de Resposta / Resposta Modelo
+    // Expressão regular para Padrão de Resposta
     const modelAnswerRegex = /^(?:padr[aã]o\s+de\s+resposta|resposta\s+modelo|crit[eé]rios?\s+de\s+corre[cç][aã]o|resposta\s+esperada)\s*:?\s*(.*)$/i;
 
-    // Expressão regular para identificar início de Feedback / Comentário
+    // Expressão regular para Feedback
     const feedbackRegex = /^(?:feedback|gabarito\s+comentado|coment[aá]rio)\s*:?\s*(.*)$/i;
 
-    // Expressão regular para título inicial (Ex: "Questão 1 — Roteiro 1", "Questão 02", "Q1", etc.)
+    // Expressão regular para Título
     const titleRegex = /^(?:quest[aã]o\s*\d+|q\d+)/i;
 
     let lineIndex = 0;
 
     // 1. Verifica se a primeira linha é o Título
-    if (lines.length > 0 && titleRegex.test(lines[0])) {
-      title = lines[0];
+    const firstPlain = this.stripHtml(rawLines[0]);
+    if (rawLines.length > 0 && titleRegex.test(firstPlain)) {
+      title = firstPlain;
       lineIndex = 1;
     }
 
     // 2. Itera pelas linhas restantes
-    for (; lineIndex < lines.length; lineIndex++) {
-      const line = lines[lineIndex];
+    for (; lineIndex < rawLines.length; lineIndex++) {
+      const lineHtml = rawLines[lineIndex];
+      const linePlain = this.stripHtml(lineHtml);
 
-      // Verifica se entrou na seção de Padrão de Resposta
-      const modelAnswerMatch = line.match(modelAnswerRegex);
+      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table')) {
+        continue;
+      }
+
+      // Verifica Padrão de Resposta
+      const modelAnswerMatch = linePlain.match(modelAnswerRegex);
       if (modelAnswerMatch) {
         currentSection = 'modelAnswer';
-        if (modelAnswerMatch[1] && modelAnswerMatch[1].trim()) {
-          modelAnswerLines.push(modelAnswerMatch[1].trim());
+        const inlineText = modelAnswerMatch[1].trim();
+        if (inlineText) {
+          modelAnswerLines.push(inlineText);
         }
         continue;
       }
 
-      // Verifica se entrou na seção de Feedback
-      const feedbackMatch = line.match(feedbackRegex);
+      // Verifica Feedback
+      const feedbackMatch = linePlain.match(feedbackRegex);
       if (feedbackMatch) {
         currentSection = 'feedback';
-        if (feedbackMatch[1] && feedbackMatch[1].trim()) {
-          feedbackLines.push(feedbackMatch[1].trim());
+        const inlineText = feedbackMatch[1].trim();
+        if (inlineText) {
+          feedbackLines.push(inlineText);
         }
         continue;
       }
 
       if (currentSection === 'modelAnswer') {
-        modelAnswerLines.push(line);
+        modelAnswerLines.push(lineHtml);
         continue;
       }
 
       if (currentSection === 'feedback') {
-        feedbackLines.push(line);
+        feedbackLines.push(lineHtml);
         continue;
       }
 
-      // Verifica se a linha é uma Alternativa de múltipla escolha
-      const optionMatch = line.match(optionRegex);
+      // Verifica Alternativa
+      const optionMatch = linePlain.match(optionRegex);
       if (optionMatch) {
         currentSection = 'options';
         const isCorrect = optionMatch[1] === '*';
         const letter = (optionMatch[2] || optionMatch[3] || optionMatch[4]).toLowerCase();
-        const text = optionMatch[5].trim();
+        
+        // Remove o prefixo da alternativa mantendo tags semânticas internas balanceadas
+        const optionContentHtml = this.removeOptionPrefix(lineHtml);
         const optionIndex = options.length + 1;
 
         options.push({
           id: `answer_${optionIndex}`,
           letter: letter,
-          text: text,
+          text: isHtml ? HtmlSanitizer.toValidXhtml(optionContentHtml) : optionContentHtml,
           isCorrect: isCorrect
         });
       } else {
-        // Se ainda estamos no Enunciado
+        // Enunciado ou continuação
         if (currentSection === 'prompt') {
-          promptLines.push(line);
+          promptLines.push(lineHtml);
         } else if (currentSection === 'options' && options.length > 0) {
-          // Acrescenta linha à última alternativa
-          options[options.length - 1].text += ` ${line}`;
+          const sep = isHtml ? '<br />' : ' ';
+          options[options.length - 1].text += `${sep}${isHtml ? HtmlSanitizer.toValidXhtml(lineHtml) : lineHtml}`;
         }
       }
     }
 
-    const prompt = promptLines.join('\n');
-    const modelAnswer = modelAnswerLines.join('\n');
-    const feedback = feedbackLines.join('\n');
+    const prompt = isHtml ? this.assembleBlockContent(promptLines) : promptLines.join('\n');
+    const modelAnswer = isHtml ? this.assembleBlockContent(modelAnswerLines) : modelAnswerLines.join('\n');
+    const feedback = isHtml ? this.assembleBlockContent(feedbackLines) : feedbackLines.join('\n');
 
-    if (!prompt.trim()) {
+    if (!prompt.trim() || prompt === '<p></p>') {
       Logger.error('Não foi possível identificar o enunciado da questão.');
       return null;
     }
@@ -178,5 +203,61 @@ export const QuestionParser = {
         feedback: feedback
       };
     }
+  },
+
+  /**
+   * Limpa uma linha individual removendo tags de bloco órfãs no início e no fim.
+   * @param {string} line
+   * @returns {string}
+   */
+  cleanLineContent(line) {
+    if (!line) return '';
+    let cleaned = HtmlSanitizer.cleanHtml(line);
+    // Remove tags de bloco soltas no início/fim da linha para evitar aninhamento quebrado
+    cleaned = cleaned.replace(/^\s*<(?:p|div)[^>]*>/i, '');
+    cleaned = cleaned.replace(/<\/(?:p|div)>\s*$/i, '');
+    return cleaned.trim();
+  },
+
+  /**
+   * Monta um bloco de conteúdo (prompt, modelAnswer, feedback) encapsulando linhas em <p> se necessário.
+   * @param {Array<string>} lines
+   * @returns {string}
+   */
+  assembleBlockContent(lines) {
+    if (!lines || lines.length === 0) return '';
+    return lines
+      .map(line => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol')) {
+          return HtmlSanitizer.toValidXhtml(trimmed);
+        }
+        return `<p>${HtmlSanitizer.toValidXhtml(trimmed)}</p>`;
+      })
+      .filter(l => l.length > 0)
+      .join('\n');
+  },
+
+  /**
+   * Remove tags HTML e retorna apenas texto plano.
+   * @param {string} html
+   * @returns {string}
+   */
+  stripHtml(html) {
+    if (!html) return '';
+    return html.replace(/<[^>]*>/g, '').trim();
+  },
+
+  /**
+   * Remove prefixos de alternativa (*a), b., (c), etc.) preservando as tags HTML internas abertas.
+   * @param {string} html
+   * @returns {string}
+   */
+  removeOptionPrefix(html) {
+    if (!html) return '';
+    return html
+      .replace(/^((?:\s*<[^>]+>)*)\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))\s*/i, '$1')
+      .trim();
   }
 };

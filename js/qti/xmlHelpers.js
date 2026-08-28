@@ -28,8 +28,8 @@ export const XmlHelpers = {
   formatContent(text) {
     if (!text) return '<p></p>';
     
-    // Se o texto já contiver tags <p>, apenas retorna
-    if (text.includes('<p>') || text.includes('<div>')) {
+    // Se o texto já contiver tags <p>, <div>, <table>, etc., apenas retorna
+    if (text.includes('<p>') || text.includes('<p ') || text.includes('<div>') || text.includes('<div ') || text.includes('<table')) {
       return text;
     }
 

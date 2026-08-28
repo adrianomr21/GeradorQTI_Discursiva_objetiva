@@ -34,8 +34,11 @@ export const ItemBuilder = {
 
     // Monta as tags <simpleChoice>
     const choicesXml = question.options.map(opt => {
-      const escapedText = XmlHelpers.escapeXml(opt.text);
-      return `<simpleChoice identifier="${opt.id}" fixed="true"><p>${escapedText}</p></simpleChoice>`;
+      let content = opt.text.trim();
+      if (!content.startsWith('<p') && !content.startsWith('<div')) {
+        content = `<p>${content}</p>`;
+      }
+      return `<simpleChoice identifier="${opt.id}" fixed="true">${content}</simpleChoice>`;
     }).join('');
 
     // Formata o Feedback / Gabarito Comentado

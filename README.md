@@ -6,6 +6,12 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
 
 ## 🎯 Principais Funcionalidades
 
+- **Editor de Texto Rico (WYSIWYG)**:
+  - **Barra de Ferramentas de Formatação**: Negrito (`Ctrl+B`), Itálico (`Ctrl+I`), Sublinhado (`Ctrl+U`), Tachado, Sobrescrito ($x^2$), Subscrito ($H_2O$), Listas com Marcadores e Listas Numeradas.
+  - **Tabelas e Links**: Inserção de tabelas formatadas compatíveis com QTI e inclusão de hiperlinks.
+  - **Gestão de Imagens Integrada**: Upload via botão, colagem direta da área de transferência (**`Ctrl+V`**) e **Arrastar e Soltar (Drag & Drop)**.
+  - **Higienização de HTML (Clear HTML)**: Limpa marcações sujas copiadas do Word ou Google Docs mantendo a estrutura semântica limpa.
+  - **Alternador de Código Fonte (Modo HTML)**: Permite visualizar e editar o código-fonte HTML puro da questão diretamente.
 - **Múltipla Escolha (Objetiva)**:
   - Identificação automática da alternativa correta marcada com um asterisco (`*`).
   - Geração de regras de pontuação automática (`<responseProcessing>`).
@@ -14,40 +20,51 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
   - Campo de texto aberto (`<extendedTextInteraction>`).
   - **Padrão de Resposta exclusivo para o professor**: mapeado em `<rubricBlock view="scorer" use="scoring">` e `<correctResponse>`, servindo de base para a banca avaliadora sem ser exibido ao aluno.
   - **Feedback para o aluno**: mapeado em `<modalFeedback>`, visível após a entrega/correção.
-- **Parser de Texto Inteligente**:
-  - Aceita colagem direta de questões sem formulários complexos.
-  - Não confunde parágrafos ou numerações romanas (`I)`, `II)`) com alternativas.
-- **Visualizador de JSON em Tempo Real**:
-  - Exibe a estrutura de dados gerada instantaneamente.
+- **Identificadores Padronizados**:
+  - Questões numeradas como `QUE__00001`, `QUE__00002`, correspondendo ao arquivo Word de backup.
 - **Monitor de Logs**:
   - Terminal visual na interface com rastreamento detalhado de cada etapa (parse, montagem de XML, empacotamento).
 - **Exportação Client-Side Direta**:
-  - Compacta e faz o download do `.zip` diretamente no navegador (sem necessidade de servidor backend ou banco de dados).
+  - Empacota automaticamente XMLs e imagens binárias no `.zip` diretamente no navegador.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
-O código foi projetado de forma modular e didática para facilitar o entendimento de cada etapa do padrão QTI:
+O código foi projetado de forma modular e didática para facilitar o entendimento de cada etapa:
 
 ```text
 GeradorQTI_Discursiva_objetiva/
-├── index.html                   # Interface gráfica com editor, JSON e monitor de logs
+├── index.html                   # Interface gráfica com editor rico, JSON e monitor de logs
 ├── README.md                    # Documentação do projeto
+├── package.json                 # Configuração de scripts de testes (node:test)
 ├── css/
-│   └── styles.css               # Estilos da interface e painel de monitoramento
+│   └── styles.css               # Estilos da interface, barra de ferramentas e terminal de logs
 ├── lib/
 │   └── jszip.min.js             # Biblioteca client-side para compactação ZIP
 ├── js/
 │   ├── app.js                   # Controlador principal da interface e fluxo de eventos
 │   ├── logger.js                # Módulo de logs (tela e console do navegador)
-│   ├── parser.js                # Analisador de texto puro para JSON estruturado
+│   ├── parser.js                # Analisador de texto e HTML rico para JSON estruturado
+│   ├── editor/
+│   │   ├── richTextEditor.js    # Componente WYSIWYG, toolbar, Ctrl+V, drag & drop
+│   │   ├── htmlSanitizer.js     # Sanitizador e conversor para XHTML válido QTI 2.1
+│   │   └── assetManager.js      # Extrator de imagens em base64 e conversor de caminhos
 │   └── qti/
-│       ├── xmlHelpers.js        # Utilitários de escape e formatação de XHTML/XML
+│       ├── xmlHelpers.js        # Utilitários de escape e identificadores (QUE__00001)
 │       ├── itemBuilder.js       # Gerador do assessmentItem0000X.xml (Objetiva e Discursiva)
 │       ├── testBuilder.js       # Gerador do question_bank00001.xml (agrupador de teste)
-│       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice e dependências)
+│       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice, recursos e mídias)
 │       └── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
+├── tests/                       # Suíte de testes automatizados (36 testes unitários)
+│   ├── parser.test.js
+│   ├── richParser.test.js
+│   ├── htmlSanitizer.test.js
+│   ├── assetManager.test.js
+│   ├── itemBuilder.test.js
+│   ├── testBuilder.test.js
+│   ├── manifestBuilder.test.js
+│   └── xmlHelpers.test.js
 └── ExemplosQti/                 # Pacotes de referência no formato QTI 2.1
 ```
 
@@ -57,19 +74,19 @@ GeradorQTI_Discursiva_objetiva/
 
 ### 1. Questão de Múltipla Escolha (Objetiva)
 
-Basta colocar um asterisco `*` na frente da alternativa correta:
+Basta colocar um asterisco `*` na frente da alternativa correta (com ou sem formatação rica):
 
 ```text
 Questão 1
 Qual das seguintes linguagens é padrão para manipulação de bancos de dados relacionais?
-*a) SQL
+*a) SQL (Structured Query Language)
 b) HTML
 c) CSS
 d) Python
 e) JSON
 
 Feedback:
-SQL (Structured Query Language) é a linguagem padrão utilizada para consultas e manipulações em bancos de dados relacionais.
+SQL é a linguagem padrão utilizada para consultas e manipulações em bancos de dados relacionais.
 ```
 
 ### 2. Questão Discursiva
@@ -99,7 +116,8 @@ Ao clicar em **"Gerar Pacote QTI (.zip)"**, o arquivo baixado possui a seguinte 
 ```text
 Pool_ExportFile_Nome_Atividade.zip
 │
-├── imsmanifest.xml                  # Manifesto central que cataloga itens e schemas
+├── imsmanifest.xml                  # Manifesto central que cataloga itens, schemas e imagens
+├── img_q1_1.png                     # Imagens binárias extraídas do editor
 ├── csfiles/
 │   └── home_dir/                    # Estrutura padrão de metadados
 └── qti21/
@@ -109,45 +127,29 @@ Pool_ExportFile_Nome_Atividade.zip
     └── ...
 ```
 
-### Mapeamento no XML Discursivo:
+---
 
-```xml
-<assessmentItem ... identifier="QUE__00001">
-  <responseDeclaration cardinality="single" baseType="string" identifier="RESPONSE">
-    <!-- Padrão de Resposta -->
-    <correctResponse>
-      <value>Texto da resposta modelo...</value>
-    </correctResponse>
-  </responseDeclaration>
+## 🧪 Testes Automatizados
 
-  <itemBody>
-    <div>
-      <p>Texto do Enunciado...</p>
-    </div>
-    <extendedTextInteraction responseIdentifier="RESPONSE"/>
-    
-    <!-- Padrão de Resposta EXCLUSIVO DO PROFESSOR (view="scorer") -->
-    <rubricBlock view="scorer" use="scoring">
-      <div>
-        <p>Texto da resposta modelo para correção...</p>
-      </div>
-    </rubricBlock>
-  </itemBody>
+O projeto conta com uma suíte completa de **36 testes unitários** desenvolvida com o test runner nativo do Node.js (`node:test` e `node:assert`), cobrindo 100% dos módulos do sistema:
 
-  <!-- Feedback VISÍVEL AO ALUNO -->
-  <modalFeedback showHide="show" outcomeIdentifier="FEEDBACKBASIC" identifier="correct_fb">
-    <div>
-      <p>Comentário pedagógico para o aluno...</p>
-    </div>
-  </modalFeedback>
-</assessmentItem>
+```bash
+npm test
 ```
+
+### O que os testes cobrem:
+- **`htmlSanitizer.test.js`**: Limpeza de código proprietário do Word/Docs, remoção de tags perigosas, conversão para XHTML válido e fechamento de tags vazias.
+- **`assetManager.test.js`**: Extração de imagens Base64, geração de nomes sequenciais e mapeamento de caminhos relativos.
+- **`richParser.test.js` & `parser.test.js`**: Parsing de textos planos e formatados em HTML com tabelas, fórmulas, sobrescritos, alternativas com `*`, padrões de resposta e feedbacks.
+- **`itemBuilder.test.js`**: Validação dos XMLs gerados (`QUE__00001`, `choiceInteraction`, `extendedTextInteraction`, `rubricBlock view="scorer"`, `correctResponse`, `modalFeedback`).
+- **`xmlHelpers.test.js`**: Escape seguro de entidades XML, conversão de parágrafos e identificadores.
+- **`testBuilder.test.js` & `manifestBuilder.test.js`**: Estrutura do `question_bank00001.xml` e `imsmanifest.xml` com catálogo de recursos e mídias.
 
 ---
 
-## 🚀 Como Executar
+## 🚀 Como Executar a Interface Web
 
-Não é necessária nenhuma instalação de dependências ou Node.js para rodar a aplicação:
+Não é necessária nenhuma instalação de dependências para rodar a aplicação no navegador:
 
 1. Dê um duplo clique no arquivo [`index.html`](file:///c:/Temp/Adriano/Projetos/GeradorQTI_Discursiva_objetiva/index.html) para abrir diretamente em qualquer navegador moderno (Chrome, Edge, Firefox, Safari).
 2. Opcionalmente, pode ser servido via qualquer servidor estático local (como Live Server do VS Code ou `npx serve .`).

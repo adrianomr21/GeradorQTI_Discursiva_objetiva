@@ -10,11 +10,25 @@ export const ManifestBuilder = {
   /**
    * Gera o conteúdo do imsmanifest.xml.
    * @param {number} totalQuestions - Quantidade total de questões no pacote
+   * @param {Array<{ itemIndex: number, assets: Array<{ identifier: string, filename: string }> }>} itemAssets - Mídias associadas
    * @returns {string} XML do imsmanifest.xml
    */
-  build(totalQuestions = 1) {
+  build(totalQuestions = 1, itemAssets = []) {
+    const webContentResources = [];
     const dependencies = [];
     const itemResources = [];
+
+    // Mapeamento de assets por questão
+    const assetsMap = {};
+    itemAssets.forEach(entry => {
+      assetsMap[entry.itemIndex] = entry.assets || [];
+      // Adiciona recursos de webcontent (imagens)
+      (entry.assets || []).forEach(asset => {
+        webContentResources.push(`    <resource href="${asset.filename}" identifier="${asset.identifier}" type="webcontent">
+      <file href="${asset.filename}"/>
+    </resource>`);
+      });
+    });
 
     for (let i = 1; i <= totalQuestions; i++) {
       const itemId = XmlHelpers.formatItemIdentifier(i);
@@ -22,11 +36,17 @@ export const ManifestBuilder = {
       // Dependência listada no question_bank
       dependencies.push(`      <dependency identifierref="${itemId}"/>`);
 
+      // Dependências do item (imagens que ele usa)
+      const currentItemAssets = assetsMap[i] || [];
+      const itemDepXml = currentItemAssets.map(a => `\n      <dependency identifierref="${a.identifier}"/>`).join('');
+
       // Recurso individual do assessmentItem
       itemResources.push(`    <resource href="qti21/${itemId}.xml" identifier="${itemId}" type="imsqti_item_xmlv2p1">
-      <file href="qti21/${itemId}.xml"/>
+      <file href="qti21/${itemId}.xml"/>${itemDepXml}
     </resource>`);
     }
+
+    const webContentSection = webContentResources.length > 0 ? `${webContentResources.join('\n')}\n\n` : '';
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <manifest identifier="man00001" 
@@ -45,7 +65,7 @@ export const ManifestBuilder = {
   <organizations/>
   
   <resources>
-    <!-- Recurso do Teste / Question Bank -->
+${webContentSection}    <!-- Recurso do Teste / Question Bank -->
     <resource href="qti21/question_bank00001.xml" identifier="question_bank00001" type="imsqti_test_xmlv2p1">
       <file href="qti21/question_bank00001.xml"/>
 ${dependencies.join('\n')}

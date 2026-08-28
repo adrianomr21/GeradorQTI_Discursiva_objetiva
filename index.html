@@ -48,21 +48,51 @@
             </ul>
           </div>
 
-          <textarea id="question-input" placeholder="Cole o texto da questão aqui...
+          <div class="editor-container">
+            <!-- Barra de Ferramentas (Toolbar) -->
+            <div class="editor-toolbar" id="editor-toolbar">
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-bold" title="Negrito (Ctrl+B)"><b>B</b></button>
+                <button type="button" class="tool-btn" id="btn-tool-italic" title="Itálico (Ctrl+I)"><i>I</i></button>
+                <button type="button" class="tool-btn" id="btn-tool-underline" title="Sublinhado (Ctrl+U)"><u>U</u></button>
+                <button type="button" class="tool-btn" id="btn-tool-strike" title="Tachado"><s>S</s></button>
+              </div>
 
-Exemplo Discursiva com Padrão de Resposta:
-Questão 1
-Explique o conceito de polimorfismo em POO.
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-sup" title="Sobrescrito (x²)">x²</button>
+                <button type="button" class="tool-btn" id="btn-tool-sub" title="Subscrito (x₂)">x₂</button>
+              </div>
 
-Padrão de resposta:
-Polimorfismo é a capacidade de objetos de diferentes classes responderem à mesma mensagem de formas distintas.
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-ul" title="Lista com Marcadores">• Lista</button>
+                <button type="button" class="tool-btn" id="btn-tool-ol" title="Lista Numerada">1. Lista</button>
+              </div>
 
-Feedback:
-Muito bem! O aluno deve mencionar métodos sobrescritos e flexibilidade no código."></textarea>
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-table" title="Inserir Tabela">📊 Tabela</button>
+                <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir Link">🔗 Link</button>
+                <button type="button" class="tool-btn" id="btn-tool-image" title="Upload / Inserir Imagem">🖼️ Imagem</button>
+              </div>
+
+              <div class="toolbar-group toolbar-right">
+                <button type="button" class="tool-btn" id="btn-tool-clear" title="Limpar Formatação Suja / Clear HTML">🧹 Limpar HTML</button>
+                <button type="button" class="tool-btn" id="btn-tool-source" title="Ver / Editar Código Fonte HTML">&lt;/&gt; HTML</button>
+              </div>
+            </div>
+
+            <!-- Input oculto para upload de imagem -->
+            <input type="file" id="editor-image-input" accept="image/*" style="display: none;">
+
+            <!-- Área de Edição Visual (WYSIWYG) -->
+            <div id="editor-content" class="rich-editor-content" contenteditable="true" data-placeholder="Cole ou digite a questão aqui... Você pode colar imagens (Ctrl+V) ou arrastá-las diretamente para cá!"></div>
+
+            <!-- Área de Edição em Código Fonte (HTML) -->
+            <textarea id="editor-source" class="rich-editor-source" style="display: none;" placeholder="Código HTML fonte da questão..."></textarea>
+          </div>
 
           <div class="action-row">
             <button id="btn-add-question" class="btn btn-primary" style="flex: 2;">➕ Adicionar Questão ao JSON</button>
-            <button id="btn-clear-input" class="btn btn-outline" style="flex: 1;">Limpar Campo</button>
+            <button id="btn-clear-input" class="btn btn-outline" style="flex: 1;">Limpar Editor</button>
           </div>
 
           <!-- Visualizador do JSON Gerado -->

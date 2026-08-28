@@ -1,14 +1,9 @@
-/**
- * zipBuilder.js
- * Módulo responsável por reunir todos os XMLs e estruturas de pastas
- * e gerar o arquivo .zip final pronto para importação no LMS.
- */
-
 import { Logger } from '../logger.js';
 import { XmlHelpers } from './xmlHelpers.js';
 import { ItemBuilder } from './itemBuilder.js';
 import { TestBuilder } from './testBuilder.js';
 import { ManifestBuilder } from './manifestBuilder.js';
+import { AssetManager } from '../editor/assetManager.js';
 
 export const ZipBuilder = {
   /**
@@ -34,24 +29,75 @@ export const ZipBuilder = {
     Logger.info(`Iniciando geração do pacote QTI 2.1 para "${title}" (${questions.length} questões)...`);
 
     try {
-      // 1. Gera e adiciona o imsmanifest.xml na raiz
+      // 1. Processa mídias e imagens embutidas em cada questão
+      const itemAssets = [];
+      const processedQuestions = questions.map((q, index) => {
+        const itemNumber = index + 1;
+        const currentAssets = [];
+
+        // Clona a questão para não alterar o estado original da tela
+        const qClone = JSON.parse(JSON.stringify(q));
+
+        // Processa imagens no Enunciado
+        const promptRes = AssetManager.processImages(qClone.prompt, itemNumber);
+        qClone.prompt = promptRes.processedHtml;
+        currentAssets.push(...promptRes.assets);
+
+        // Processa imagens nas Alternativas
+        if (qClone.options && Array.isArray(qClone.options)) {
+          qClone.options.forEach((opt, optIdx) => {
+            const optRes = AssetManager.processImages(opt.text, `${itemNumber}_opt_${optIdx + 1}`);
+            opt.text = optRes.processedHtml;
+            currentAssets.push(...optRes.assets);
+          });
+        }
+
+        // Processa imagens no Padrão de Resposta
+        if (qClone.modelAnswer) {
+          const modelRes = AssetManager.processImages(qClone.modelAnswer, `${itemNumber}_model`);
+          qClone.modelAnswer = modelRes.processedHtml;
+          currentAssets.push(...modelRes.assets);
+        }
+
+        // Processa imagens no Feedback
+        if (qClone.feedback) {
+          const fbRes = AssetManager.processImages(qClone.feedback, `${itemNumber}_fb`);
+          qClone.feedback = fbRes.processedHtml;
+          currentAssets.push(...fbRes.assets);
+        }
+
+        // Adiciona as imagens no ZIP
+        currentAssets.forEach(asset => {
+          Logger.info(`Adicionando mídia ao pacote: ${asset.filename}`);
+          zip.file(asset.filename, asset.data);
+        });
+
+        itemAssets.push({
+          itemIndex: itemNumber,
+          assets: currentAssets
+        });
+
+        return qClone;
+      });
+
+      // 2. Gera e adiciona o imsmanifest.xml na raiz
       Logger.info('Criando imsmanifest.xml...');
-      const manifestXml = ManifestBuilder.build(questions.length);
+      const manifestXml = ManifestBuilder.build(processedQuestions.length, itemAssets);
       zip.file('imsmanifest.xml', manifestXml);
 
-      // 2. Cria a pasta csfiles/home_dir/
+      // 3. Cria a pasta csfiles/home_dir/
       zip.folder('csfiles').folder('home_dir');
 
-      // 3. Cria a pasta qti21/
+      // 4. Cria a pasta qti21/
       const qtiFolder = zip.folder('qti21');
 
-      // 4. Gera e adiciona o question_bank00001.xml
+      // 5. Gera e adiciona o question_bank00001.xml
       Logger.info('Criando qti21/question_bank00001.xml...');
-      const testXml = TestBuilder.build(title, questions.length);
+      const testXml = TestBuilder.build(title, processedQuestions.length);
       qtiFolder.file('question_bank00001.xml', testXml);
 
-      // 5. Gera cada arquivo assessmentItemXXXXX.xml
-      questions.forEach((q, index) => {
+      // 6. Gera cada arquivo assessmentItemXXXXX.xml
+      processedQuestions.forEach((q, index) => {
         const itemNumber = index + 1;
         const itemId = XmlHelpers.formatItemIdentifier(itemNumber);
         const fileName = `${itemId}.xml`;
