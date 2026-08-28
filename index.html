@@ -80,6 +80,34 @@
               </div>
             </div>
 
+            <!-- Barra Contextual de Tabela (aparece ao clicar em uma célula) -->
+            <div id="table-floating-toolbar" class="context-toolbar table-toolbar" style="display: none;">
+              <span class="context-title">📊 Tabela:</span>
+              <button type="button" class="context-btn" id="btn-tbl-add-row-above" title="Adicionar Linha Acima">➕ Linha ↑</button>
+              <button type="button" class="context-btn" id="btn-tbl-add-row-below" title="Adicionar Linha Abaixo">➕ Linha ↓</button>
+              <button type="button" class="context-btn" id="btn-tbl-add-col-left" title="Adicionar Coluna à Esquerda">➕ Coluna ←</button>
+              <button type="button" class="context-btn" id="btn-tbl-add-col-right" title="Adicionar Coluna à Direita">➕ Coluna →</button>
+              <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-row" title="Excluir Linha Atual">❌ Linha</button>
+              <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-col" title="Excluir Coluna Atual">❌ Coluna</button>
+              <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-table" title="Excluir Tabela Inteira">🗑️ Excluir Tabela</button>
+            </div>
+
+            <!-- Barra Contextual de Imagem (aparece ao clicar em uma imagem) -->
+            <div id="image-floating-toolbar" class="context-toolbar image-toolbar" style="display: none;">
+              <span class="context-title">🖼️ Imagem:</span>
+              <button type="button" class="context-btn" id="btn-img-size-25" title="Definir tamanho 25%">25%</button>
+              <button type="button" class="context-btn" id="btn-img-size-50" title="Definir tamanho 50%">50%</button>
+              <button type="button" class="context-btn" id="btn-img-size-75" title="Definir tamanho 75%">75%</button>
+              <button type="button" class="context-btn" id="btn-img-size-100" title="Definir tamanho 100%">100%</button>
+              <button type="button" class="context-btn" id="btn-img-size-custom" title="Digitar largura exata em pixels">📏 Ajustar (px)</button>
+              <div class="context-separator"></div>
+              <button type="button" class="context-btn" id="btn-img-align-left" title="Alinhar à Esquerda">⬅️ Esquerda</button>
+              <button type="button" class="context-btn" id="btn-img-align-center" title="Centralizar">⏹️ Centro</button>
+              <button type="button" class="context-btn" id="btn-img-align-right" title="Alinhar à Direita">➡️ Direita</button>
+              <div class="context-separator"></div>
+              <button type="button" class="context-btn context-btn-danger" id="btn-img-delete" title="Remover Imagem">🗑️ Remover</button>
+            </div>
+
             <!-- Input oculto para upload de imagem -->
             <input type="file" id="editor-image-input" accept="image/*" style="display: none;">
 

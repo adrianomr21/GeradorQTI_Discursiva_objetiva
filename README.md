@@ -8,9 +8,9 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
 
 - **Editor de Texto Rico (WYSIWYG)**:
   - **Barra de Ferramentas de Formatação**: Negrito (`Ctrl+B`), Itálico (`Ctrl+I`), Sublinhado (`Ctrl+U`), Tachado, Sobrescrito ($x^2$), Subscrito ($H_2O$), Listas com Marcadores e Listas Numeradas.
-  - **Tabelas e Links**: Inserção de tabelas formatadas compatíveis com QTI e inclusão de hiperlinks.
-  - **Gestão de Imagens Integrada**: Upload via botão, colagem direta da área de transferência (**`Ctrl+V`**) e **Arrastar e Soltar (Drag & Drop)**.
-  - **Higienização de HTML (Clear HTML)**: Limpa marcações sujas copiadas do Word ou Google Docs mantendo a estrutura semântica limpa.
+  - **Manipulação Completa de Tabelas**: Inserção de tabelas com barra contextual para adicionar linhas acima/abaixo, colunas à esquerda/direita, excluir linhas/colunas e excluir tabelas.
+  - **Gestão e Redimensionamento de Imagens**: Upload via botão, colagem direta (**`Ctrl+V`**) e **Arrastar e Soltar**. Barra contextual de redimensionamento (`25%`, `50%`, `75%`, `100%`, `tamanho em px`) e alinhamento (`Esquerda`, `Centro`, `Direita`).
+  - **Higienização de HTML (Clear HTML)**: Limpa marcações sujas copiadas do Word ou Google Docs mantendo a estrutura semântica limpa e preservando estilos válidos de layout.
   - **Alternador de Código Fonte (Modo HTML)**: Permite visualizar e editar o código-fonte HTML puro da questão diretamente.
 - **Múltipla Escolha (Objetiva)**:
   - Identificação automática da alternativa correta marcada com um asterisco (`*`).
@@ -48,6 +48,8 @@ GeradorQTI_Discursiva_objetiva/
 │   ├── parser.js                # Analisador de texto e HTML rico para JSON estruturado
 │   ├── editor/
 │   │   ├── richTextEditor.js    # Componente WYSIWYG, toolbar, Ctrl+V, drag & drop
+│   │   ├── tableHelper.js       # Manipulação de tabelas (adicionar/remover linhas/colunas)
+│   │   ├── imageHelper.js       # Redimensionamento e alinhamento de imagens
 │   │   ├── htmlSanitizer.js     # Sanitizador e conversor para XHTML válido QTI 2.1
 │   │   └── assetManager.js      # Extrator de imagens em base64 e conversor de caminhos
 │   └── qti/
@@ -56,9 +58,11 @@ GeradorQTI_Discursiva_objetiva/
 │       ├── testBuilder.js       # Gerador do question_bank00001.xml (agrupador de teste)
 │       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice, recursos e mídias)
 │       └── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
-├── tests/                       # Suíte de testes automatizados (36 testes unitários)
+├── tests/                       # Suíte de testes automatizados (42 testes unitários)
 │   ├── parser.test.js
 │   ├── richParser.test.js
+│   ├── tableHelper.test.js
+│   ├── imageHelper.test.js
 │   ├── htmlSanitizer.test.js
 │   ├── assetManager.test.js
 │   ├── itemBuilder.test.js

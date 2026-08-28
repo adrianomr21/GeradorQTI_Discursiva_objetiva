@@ -23,13 +23,26 @@ export const HtmlSanitizer = {
     clean = clean.replace(/<(?:script|style|xml|iframe|applet)[\s\S]*?<\/(?:script|style|xml|iframe|applet)>/gi, '');
     clean = clean.replace(/<\/?(?:meta|link|o:p|font|basefont)[^>]*>/gi, '');
 
-    // 3. Remove atributos perigosos ou poluídos (class="Mso...", style="mso-...", lang, id, etc.)
+    // 3. Remove atributos perigosos ou poluídos (class="Mso...", lang, id, etc.)
     clean = clean.replace(/\s+class="[^"]*"/gi, '');
     clean = clean.replace(/\s+lang="[^"]*"/gi, '');
     clean = clean.replace(/\s+align="[^"]*"/gi, '');
     
-    // Remove styles de margens/fontes do Word que poluem o XML
-    clean = clean.replace(/\s+style="[^"]*(?:mso-|font-family|margin|line-height)[^"]*"/gi, '');
+    // Limpa propriedades proprietárias do Word dentro de style="..." preservando width, height, display, etc.
+    clean = clean.replace(/style="([^"]*)"/gi, (match, styles) => {
+      let cleanedStyle = styles
+        .replace(/mso-[^;]+;?/gi, '')
+        .replace(/font-family:[^;]+;?/gi, '')
+        .replace(/line-height:[^;]+;?/gi, '')
+        .replace(/margin-(?:top|bottom|left|right):\s*[\d\.]+(?:pt|cm);?/gi, '')
+        .replace(/font-size:[^;]+;?/gi, '')
+        .trim();
+
+      // Remove ponto e vírgula soltos
+      cleanedStyle = cleanedStyle.replace(/^;+|;+$/g, '').trim();
+
+      return cleanedStyle ? `style="${cleanedStyle}"` : '';
+    });
 
     // 4. Converte <b> e <i> para <strong> e <em> (padrão semântico)
     clean = clean.replace(/<b(\s+[^>]*)?>/gi, '<strong>').replace(/<\/b>/gi, '</strong>');

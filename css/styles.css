@@ -219,6 +219,73 @@ header p {
   border-color: #1d4ed8;
 }
 
+/* Contextual Toolbars (Table and Image Actions) */
+.context-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 6px 10px;
+  border-bottom: 1px solid #334155;
+  animation: fadeIn 0.15s ease;
+  font-size: 0.8rem;
+}
+
+.table-toolbar {
+  background: #1e293b;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.image-toolbar {
+  background: #1e293b;
+  border-bottom: 2px solid #10b981;
+}
+
+.context-title {
+  font-weight: 600;
+  margin-right: 6px;
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.context-btn {
+  background: #334155;
+  color: #f8fafc;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  padding: 3px 7px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.context-btn:hover {
+  background: #475569;
+  border-color: #64748b;
+  color: #ffffff;
+}
+
+.context-btn-danger {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  color: #fecaca;
+}
+
+.context-btn-danger:hover {
+  background: #991b1b;
+  color: #ffffff;
+}
+
+.context-separator {
+  width: 1px;
+  height: 16px;
+  background: #475569;
+  margin: 0 4px;
+}
+
 /* Visual Editor ContentEditable */
 .rich-editor-content {
   min-height: 250px;
@@ -253,7 +320,18 @@ header p {
   height: auto;
   border-radius: 4px;
   margin: 6px 0;
-  border: 1px solid #e2e8f0;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rich-editor-content img:hover {
+  border-color: #93c5fd;
+}
+
+.rich-editor-content img.img-selected {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
 }
 
 /* Source Mode Textarea */

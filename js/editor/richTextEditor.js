@@ -1,21 +1,16 @@
-/**
- * richTextEditor.js
- * Componente do Editor de Texto Rico (WYSIWYG) com barra de ferramentas:
- * - Formatação: Negrito, Itálico, Sublinhado, Tachado, Sobrescrito, Subscrito, Listas
- * - Inserção de Tabelas e Links
- * - Upload de Imagens, Colar da Área de Transferência (Ctrl+V) e Drag & Drop
- * - Alternador de Código Fonte (Modo HTML)
- * - Limpeza de Formatação (Clear HTML / Sanitizer)
- */
-
 import { Logger } from '../logger.js';
 import { HtmlSanitizer } from './htmlSanitizer.js';
 import { AssetManager } from './assetManager.js';
+import { TableHelper } from './tableHelper.js';
+import { ImageHelper } from './imageHelper.js';
 
 export const RichTextEditor = {
   editorElement: null,
   sourceElement: null,
   imageInput: null,
+  tableToolbar: null,
+  imageToolbar: null,
+  activeCell: null,
   isSourceMode: false,
 
   /**
@@ -26,6 +21,8 @@ export const RichTextEditor = {
     this.editorElement = document.getElementById(config.editorId || 'editor-content');
     this.sourceElement = document.getElementById(config.sourceId || 'editor-source');
     this.imageInput = document.getElementById(config.imageInputId || 'editor-image-input');
+    this.tableToolbar = document.getElementById('table-floating-toolbar');
+    this.imageToolbar = document.getElementById('image-floating-toolbar');
 
     if (!this.editorElement) {
       console.warn('Elemento do editor não encontrado.');
@@ -33,11 +30,12 @@ export const RichTextEditor = {
     }
 
     this.bindEvents();
+    this.bindContextualToolbars();
     Logger.info('Editor de Texto Rico inicializado com suporte a mídias e tabelas.');
   },
 
   /**
-   * Registra os eventos de paste, drag & drop, atalhos e botões da barra de ferramentas.
+   * Registra os eventos de paste, drag & drop, atalhos e seleção.
    */
   bindEvents() {
     // 1. Suporte a Colar Imagens da Área de Transferência (Ctrl + V)
@@ -107,6 +105,197 @@ export const RichTextEditor = {
         this.editorElement.innerHTML = this.sourceElement.value;
       });
     }
+
+    // 5. Monitoramento de clique para ativação das barras contextuais
+    this.editorElement.addEventListener('click', (e) => {
+      this.handleEditorClick(e);
+    });
+
+    this.editorElement.addEventListener('keyup', (e) => {
+      this.handleEditorSelection();
+    });
+
+    // Fecha barras contextuais ao clicar fora do container do editor
+    document.addEventListener('click', (e) => {
+      const isInside = e.target.closest('.editor-container');
+      if (!isInside) {
+        this.hideContextToolbars();
+      }
+    });
+  },
+
+  /**
+   * Monitora cliques no editor para abrir barra de tabela ou de imagem.
+   */
+  handleEditorClick(e) {
+    const target = e.target;
+
+    // Caso 1: Clicou em uma Imagem
+    if (target.tagName && target.tagName.toLowerCase() === 'img') {
+      ImageHelper.setSelectedImage(target);
+      this.showImageToolbar();
+      this.hideTableToolbar();
+      return;
+    } else {
+      ImageHelper.setSelectedImage(null);
+      this.hideImageToolbar();
+    }
+
+    // Caso 2: Clicou dentro de uma Tabela
+    const cell = TableHelper.getClosestCell(target);
+    if (cell) {
+      this.activeCell = cell;
+      this.showTableToolbar();
+      this.hideImageToolbar();
+      return;
+    } else {
+      this.activeCell = null;
+      this.hideTableToolbar();
+    }
+  },
+
+  /**
+   * Monitora mudanças de seleção via teclado para detectar tabela.
+   */
+  handleEditorSelection() {
+    const sel = window.getSelection();
+    if (!sel || !sel.anchorNode) return;
+
+    const cell = TableHelper.getClosestCell(sel.anchorNode);
+    if (cell) {
+      this.activeCell = cell;
+      this.showTableToolbar();
+    } else {
+      this.activeCell = null;
+      this.hideTableToolbar();
+    }
+  },
+
+  /**
+   * Conecta as ações dos botões das barras contextuais.
+   */
+  bindContextualToolbars() {
+    // --- Ações de Tabela ---
+    document.getElementById('btn-tbl-add-row-above')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.addRowAbove(this.activeCell);
+        Logger.info('Linha adicionada acima.');
+      }
+    });
+
+    document.getElementById('btn-tbl-add-row-below')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.addRowBelow(this.activeCell);
+        Logger.info('Linha adicionada abaixo.');
+      }
+    });
+
+    document.getElementById('btn-tbl-add-col-left')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.addColumnLeft(this.activeCell);
+        Logger.info('Coluna adicionada à esquerda.');
+      }
+    });
+
+    document.getElementById('btn-tbl-add-col-right')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.addColumnRight(this.activeCell);
+        Logger.info('Coluna adicionada à direita.');
+      }
+    });
+
+    document.getElementById('btn-tbl-del-row')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.deleteRow(this.activeCell);
+        this.hideTableToolbar();
+        Logger.info('Linha excluída.');
+      }
+    });
+
+    document.getElementById('btn-tbl-del-col')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.deleteColumn(this.activeCell);
+        this.hideTableToolbar();
+        Logger.info('Coluna excluída.');
+      }
+    });
+
+    document.getElementById('btn-tbl-del-table')?.addEventListener('click', () => {
+      if (this.activeCell) {
+        TableHelper.deleteTable(this.activeCell);
+        this.hideTableToolbar();
+        Logger.info('Tabela excluída.');
+      }
+    });
+
+    // --- Ações de Imagem ---
+    document.getElementById('btn-img-size-25')?.addEventListener('click', () => {
+      ImageHelper.setSize('25%');
+      Logger.info('Tamanho da imagem ajustado para 25%.');
+    });
+
+    document.getElementById('btn-img-size-50')?.addEventListener('click', () => {
+      ImageHelper.setSize('50%');
+      Logger.info('Tamanho da imagem ajustado para 50%.');
+    });
+
+    document.getElementById('btn-img-size-75')?.addEventListener('click', () => {
+      ImageHelper.setSize('75%');
+      Logger.info('Tamanho da imagem ajustado para 75%.');
+    });
+
+    document.getElementById('btn-img-size-100')?.addEventListener('click', () => {
+      ImageHelper.setSize('100%');
+      Logger.info('Tamanho da imagem ajustado para 100%.');
+    });
+
+    document.getElementById('btn-img-size-custom')?.addEventListener('click', () => {
+      ImageHelper.promptCustomSize();
+    });
+
+    document.getElementById('btn-img-align-left')?.addEventListener('click', () => {
+      ImageHelper.setAlignment('left');
+      Logger.info('Imagem alinhada à esquerda.');
+    });
+
+    document.getElementById('btn-img-align-center')?.addEventListener('click', () => {
+      ImageHelper.setAlignment('center');
+      Logger.info('Imagem centralizada.');
+    });
+
+    document.getElementById('btn-img-align-right')?.addEventListener('click', () => {
+      ImageHelper.setAlignment('right');
+      Logger.info('Imagem alinhada à direita.');
+    });
+
+    document.getElementById('btn-img-delete')?.addEventListener('click', () => {
+      ImageHelper.deleteImage();
+      this.hideImageToolbar();
+      Logger.info('Imagem removida.');
+    });
+  },
+
+  showTableToolbar() {
+    if (this.tableToolbar) this.tableToolbar.style.display = 'flex';
+  },
+
+  hideTableToolbar() {
+    if (this.tableToolbar) this.tableToolbar.style.display = 'none';
+  },
+
+  showImageToolbar() {
+    if (this.imageToolbar) this.imageToolbar.style.display = 'flex';
+  },
+
+  hideImageToolbar() {
+    if (this.imageToolbar) this.imageToolbar.style.display = 'none';
+  },
+
+  hideContextToolbars() {
+    this.hideTableToolbar();
+    this.hideImageToolbar();
+    ImageHelper.setSelectedImage(null);
+    this.activeCell = null;
   },
 
   /**
@@ -159,7 +348,7 @@ export const RichTextEditor = {
     tableHtml += '</tbody>\n</table><p><br /></p>';
 
     this.insertHtmlAtCursor(tableHtml);
-    Logger.success(`Tabela (${rows}x${cols}) inserida no editor.`);
+    Logger.success(`Tabela (${rows}x${cols}) inserida. Clique nas células para adicionar ou excluir linhas e colunas.`);
   },
 
   /**
@@ -172,14 +361,15 @@ export const RichTextEditor = {
   },
 
   /**
-   * Converte um arquivo de imagem em DataURL e insere como tag <img> no cursor.
+   * Converte um arquivo de imagem em DataURL e insere como tag <img> com tamanho inicial equilibrado.
    * @param {File} file
    */
   async insertImageFile(file) {
     try {
       const dataUrl = await AssetManager.fileToDataUrl(file);
-      const imgHtml = `<img src="${dataUrl}" alt="${file.name || 'Imagem da questão'}" style="max-width: 100%; height: auto; margin: 8px 0; border-radius: 4px;" />`;
+      const imgHtml = `<img src="${dataUrl}" alt="${file.name || 'Imagem da questão'}" style="max-width: 100%; width: 420px; height: auto; margin: 8px 0; border-radius: 4px; display: block;" />`;
       this.insertHtmlAtCursor(imgHtml);
+      Logger.info('Imagem inserida com largura padrão de 420px. Clique nela para redimensionar ou alinhar.');
     } catch (err) {
       Logger.error(`Erro ao carregar imagem: ${err.message}`);
     }
@@ -235,6 +425,7 @@ export const RichTextEditor = {
     const btnSource = document.getElementById('btn-tool-source');
 
     if (this.isSourceMode) {
+      this.hideContextToolbars();
       this.sourceElement.value = this.editorElement.innerHTML;
       this.editorElement.style.display = 'none';
       this.sourceElement.style.display = 'block';
@@ -276,6 +467,7 @@ export const RichTextEditor = {
    */
   clear() {
     this.setHtml('');
+    this.hideContextToolbars();
     if (this.editorElement) this.editorElement.focus();
   }
 };
