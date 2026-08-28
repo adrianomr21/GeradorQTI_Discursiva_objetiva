@@ -5,8 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gerador de Pacote QTI 2.1 (Objetiva e Discursiva)</title>
   <link rel="stylesheet" href="css/styles.css">
+  <!-- Estilos e Scripts do KaTeX para Fórmulas Matemáticas -->
+  <link rel="stylesheet" href="lib/katex/katex.min.css">
   <!-- Biblioteca JSZip para compactação client-side -->
   <script src="lib/jszip.min.js"></script>
+  <!-- Biblioteca KaTeX para renderização de LaTeX -->
+  <script src="lib/katex/katex.min.js"></script>
 </head>
 <body>
 
@@ -84,6 +88,7 @@
 
               <div class="toolbar-group">
                 <button type="button" class="tool-btn" id="btn-tool-table" title="Inserir Tabela">📊 Tabela</button>
+                <button type="button" class="tool-btn" id="btn-tool-latex" title="Inserir Fórmula Matemática (LaTeX)">🧮 LaTeX</button>
                 <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir Link">🔗 Link</button>
                 <button type="button" class="tool-btn" id="btn-tool-image" title="Upload / Inserir Imagem">🖼️ Imagem</button>
               </div>
@@ -188,6 +193,76 @@
 
     </section>
 
+  <!-- Modal de Inserção / Edição de Fórmulas em LaTeX -->
+  <div id="modal-latex" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="latex-modal-title">🧮 Inserir Fórmula Matemática (LaTeX)</h3>
+        <button type="button" class="modal-close-btn" id="btn-latex-close" title="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Paleta de Templates e Símbolos Rápidos -->
+        <div class="latex-palette-section">
+          <span class="palette-label">Modelos e Símbolos Rápidos:</span>
+          <div class="latex-palette-grid">
+            <button type="button" class="latex-palette-btn" data-snippet="\frac{a}{b}" title="Fração">\frac{a}{b}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\sqrt{x}" title="Raiz Quadrada">\sqrt{x}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\sqrt[n]{x}" title="Raiz Enésima">\sqrt[n]{x}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="x^{2}" title="Potência / Sobrescrito">x^{2}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="x_{1}" title="Subscrito">x_{1}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\int_{a}^{b} f(x)\,dx" title="Integral">\int_{a}^{b}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\sum_{i=1}^{n} x_i" title="Somatório">\sum_{i=1}^{n}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\lim_{x \to 0}" title="Limite">\lim_{x \to 0}</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\pm" title="Mais ou Menos">\pm</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\times" title="Multiplicação">\times</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\div" title="Divisão">\div</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\neq" title="Diferente">\neq</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\leq" title="Menor ou Igual">\leq</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\geq" title="Maior ou Igual">\geq</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\approx" title="Aproximadamente">\approx</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\infty" title="Infinito">\infty</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\alpha" title="Alfa">\alpha</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\beta" title="Beta">\beta</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\pi" title="Pi">\pi</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\theta" title="Teta">\theta</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\Delta" title="Delta">\Delta</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\begin{cases} x + y = 1 \\ x - y = 0 \end{cases}" title="Sistema de Equações">Sistema</button>
+            <button type="button" class="latex-palette-btn" data-snippet="\begin{matrix} a & b \\ c & d \end{matrix}" title="Matriz">Matriz</button>
+          </div>
+        </div>
+
+        <!-- Entrada de Código LaTeX -->
+        <div class="form-group" style="margin-top: 12px;">
+          <label for="latex-code-input" style="display: flex; justify-content: space-between; font-weight: 600;">
+            <span>Código LaTeX:</span>
+            <span style="font-size: 0.8rem; font-weight: normal; color: var(--text-muted);">Pressione <code>Ctrl + Enter</code> para inserir</span>
+          </label>
+          <textarea id="latex-code-input" rows="3" class="latex-textarea" placeholder="Ex: x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}"></textarea>
+        </div>
+
+        <!-- Opção de exibição em bloco -->
+        <div style="margin-top: 6px; margin-bottom: 12px;">
+          <label style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; cursor: pointer;">
+            <input type="checkbox" id="latex-display-mode">
+            <span>Fórmula em destaque (bloco centralizado / display mode)</span>
+          </label>
+        </div>
+
+        <!-- Pré-visualização em tempo real (Live Preview) -->
+        <div class="latex-preview-section">
+          <label style="font-weight: 600; font-size: 0.88rem; color: var(--text-muted); margin-bottom: 4px; display: block;">Pré-visualização em tempo real:</label>
+          <div id="latex-preview-container" class="latex-preview-box">
+            <span class="preview-placeholder">A pré-visualização da fórmula aparecerá aqui...</span>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" id="btn-latex-cancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btn-latex-insert">Inserir no Editor</button>
+      </div>
+    </div>
   </div>
 
   <!-- Módulo Principal JavaScript -->

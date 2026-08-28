@@ -29,6 +29,7 @@ export const QuestionParser = {
         .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
         .replace(/<\/(p|div|h[1-6]|blockquote)>/gi, '__BLOCK_DELIMITER__')
         .replace(/<\/(ul|ol|table)>/gi, '$&__BLOCK_DELIMITER__')
+        .replace(/(?:^|\n)(\s*\*?(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*|\s*(?:padr[aã]o\s+de\s+resposta|feedback|gabarito|coment[aá]rio|quest[aã]o\s*\d+):?)/gi, '__BLOCK_DELIMITER__$1')
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/__BLOCK_DELIMITER__/g, '\n');
     } else {
@@ -81,7 +82,7 @@ export const QuestionParser = {
       const lineHtml = rawLines[lineIndex];
       const linePlain = this.stripHtml(lineHtml);
 
-      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table')) {
+      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('qti-math') && !lineHtml.includes('<math')) {
         continue;
       }
 

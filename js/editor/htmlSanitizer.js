@@ -23,8 +23,11 @@ export const HtmlSanitizer = {
     clean = clean.replace(/<(?:script|style|xml|iframe|applet)[\s\S]*?<\/(?:script|style|xml|iframe|applet)>/gi, '');
     clean = clean.replace(/<\/?(?:meta|link|o:p|font|basefont)[^>]*>/gi, '');
 
-    // 3. Remove atributos perigosos ou poluídos (class="Mso...", lang, id, etc.)
-    clean = clean.replace(/\s+class="[^"]*"/gi, '');
+    // 3. Remove atributos poluídos do Word (class="Mso...", lang, etc.) mas preserva todas as classes do KaTeX, tabelas e editor
+    clean = clean.replace(/\s+class="([^"]*)"/gi, (match, cls) => {
+      const kept = cls.split(/\s+/).filter(c => !/^Mso/i.test(c)).join(' ');
+      return kept ? ` class="${kept}"` : '';
+    });
     clean = clean.replace(/\s+lang="[^"]*"/gi, '');
     clean = clean.replace(/\s+align="[^"]*"/gi, '');
     

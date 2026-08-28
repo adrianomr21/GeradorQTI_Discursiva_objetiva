@@ -3,6 +3,7 @@ import { HtmlSanitizer } from './htmlSanitizer.js';
 import { AssetManager } from './assetManager.js';
 import { TableHelper } from './tableHelper.js';
 import { ImageHelper } from './imageHelper.js';
+import { LatexHelper } from './latexHelper.js';
 
 export const RichTextEditor = {
   editorElement: null,
@@ -31,7 +32,8 @@ export const RichTextEditor = {
 
     this.bindEvents();
     this.bindContextualToolbars();
-    Logger.info('Editor de Texto Rico inicializado com suporte a mídias e tabelas.');
+    LatexHelper.init(this);
+    Logger.info('Editor de Texto Rico inicializado com suporte a mídias, tabelas e LaTeX.');
   },
 
   /**
@@ -121,6 +123,14 @@ export const RichTextEditor = {
     // 6. Monitoramento de clique para ativação das barras contextuais
     this.editorElement.addEventListener('click', (e) => {
       this.handleEditorClick(e);
+    });
+
+    // 7. Duplo clique em fórmula matemática (.qti-math) para reedição
+    this.editorElement.addEventListener('dblclick', (e) => {
+      const mathEl = e.target.closest('.qti-math');
+      if (mathEl) {
+        this.openLatexModal(mathEl);
+      }
     });
 
     this.editorElement.addEventListener('keyup', (e) => {
@@ -472,6 +482,27 @@ export const RichTextEditor = {
   setHtml(html) {
     if (this.editorElement) this.editorElement.innerHTML = html;
     if (this.sourceElement) this.sourceElement.value = html;
+  },
+
+  /**
+   * Abre o modal de LaTeX para criar ou editar fórmula matemática.
+   * @param {HTMLElement|null} targetElement
+   */
+  openLatexModal(targetElement = null) {
+    if (this.isSourceMode) {
+      Logger.warn('Alterne para o modo visual para inserir fórmulas matemáticas.');
+      return;
+    }
+    LatexHelper.openModal(targetElement);
+  },
+
+  /**
+   * Sincroniza o valor do textarea de código fonte com o HTML do editor.
+   */
+  syncSourceFromEditor() {
+    if (this.sourceElement && this.editorElement) {
+      this.sourceElement.value = this.editorElement.innerHTML;
+    }
   },
 
   /**

@@ -133,6 +133,7 @@ function init() {
   document.getElementById('btn-tool-indent')?.addEventListener('click', () => RichTextEditor.execCmd('indent'));
   document.getElementById('btn-tool-outdent')?.addEventListener('click', () => RichTextEditor.execCmd('outdent'));
   document.getElementById('btn-tool-table')?.addEventListener('click', () => RichTextEditor.insertTable(3, 3));
+  document.getElementById('btn-tool-latex')?.addEventListener('click', () => RichTextEditor.openLatexModal());
   document.getElementById('btn-tool-link')?.addEventListener('click', () => RichTextEditor.insertLink());
   document.getElementById('btn-tool-image')?.addEventListener('click', () => RichTextEditor.triggerImageUpload());
   document.getElementById('btn-tool-clear')?.addEventListener('click', () => RichTextEditor.clearFormatting());
