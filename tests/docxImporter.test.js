@@ -134,4 +134,25 @@ describe('DocxImporter Module', () => {
     const imgMatches = q1.prompt.match(/<img\s+[^>]*src="data:image\/[^"]+"/gi);
     assert.ok(imgMatches && imgMatches.length === 2, 'Deve conter exatamente 2 imagens embutidas');
   });
+
+  it('deve importar com sucesso documento Word com imagens vetoriais EMF convertidas em SVG (Avaliativa Discursiva OnLine.docx)', async () => {
+    const docxPath = 'ExemplosQti/Avaliativa Discursiva OnLine.docx';
+    if (!fs.existsSync(docxPath)) return;
+
+    const buffer = fs.readFileSync(docxPath);
+    const result = await DocxImporter.importDocx(buffer, 1);
+
+    assert.ok(result);
+    assert.strictEqual(result.questions.length, 2, 'Deve importar 2 questões discursivas');
+    
+    const q1 = result.questions[0];
+    assert.strictEqual(q1.type, 'discursive');
+    assert.ok(q1.prompt.includes('função lucro'));
+    assert.ok(q1.modelAnswer.includes('<img src="data:image/svg+xml;base64,'), 'Padrão de resposta da Questão 1 deve conter gráfico vetorial SVG');
+
+    const q2 = result.questions[1];
+    assert.strictEqual(q2.type, 'discursive');
+    assert.ok(q2.prompt.includes('receita e de custo'));
+    assert.ok(q2.modelAnswer.includes('<img src="data:image/svg+xml;base64,'), 'Padrão de resposta da Questão 2 deve conter gráfico vetorial SVG');
+  });
 });

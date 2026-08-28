@@ -9,6 +9,7 @@ import { Logger } from '../logger.js';
 import { QuestionParser } from '../parser.js';
 import { HtmlSanitizer } from '../editor/htmlSanitizer.js';
 import { OmmlConverter } from './ommlConverter.js';
+import { EmfConverter } from './emfConverter.js';
 
 export const DocxImporter = {
   /**
@@ -101,8 +102,28 @@ export const DocxImporter = {
 
           const fileEntry = zip.files[target];
           if (fileEntry && !fileEntry.dir) {
-            const base64Data = await fileEntry.async('base64');
             const ext = target.split('.').pop().toLowerCase();
+            
+            // Se for imagem EMF ou WMF, converte para SVG para renderização nativa em todos os navegadores
+            if (ext === 'emf' || ext === 'wmf') {
+              try {
+                const rawBuffer = await fileEntry.async('uint8array');
+                if (EmfConverter.isEmf(rawBuffer)) {
+                  const svgXml = EmfConverter.toSvg(rawBuffer);
+                  if (svgXml) {
+                    const base64Svg = (typeof btoa !== 'undefined')
+                      ? btoa(unescape(encodeURIComponent(svgXml)))
+                      : Buffer.from(svgXml).toString('base64');
+                    mediaMap[rId] = `data:image/svg+xml;base64,${base64Svg}`;
+                    continue;
+                  }
+                }
+              } catch (emfErr) {
+                console.warn('Falha ao converter EMF para SVG:', emfErr);
+              }
+            }
+
+            const base64Data = await fileEntry.async('base64');
             let mime = 'image/png';
             if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
             else if (ext === 'gif') mime = 'image/gif';
