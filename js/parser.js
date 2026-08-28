@@ -27,7 +27,8 @@ export const QuestionParser = {
       normalized = rawInput
         .replace(/&nbsp;/gi, ' ')
         .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
-        .replace(/<\/(p|div|li|tr|h[1-6]|table|blockquote)>/gi, '__BLOCK_DELIMITER__')
+        .replace(/<\/(p|div|h[1-6]|blockquote)>/gi, '__BLOCK_DELIMITER__')
+        .replace(/<\/(ul|ol|table)>/gi, '$&__BLOCK_DELIMITER__')
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/__BLOCK_DELIMITER__/g, '\n');
     } else {
@@ -230,7 +231,7 @@ export const QuestionParser = {
       .map(line => {
         const trimmed = line.trim();
         if (!trimmed) return '';
-        if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol')) {
+        if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote')) {
           return HtmlSanitizer.toValidXhtml(trimmed);
         }
         return `<p>${HtmlSanitizer.toValidXhtml(trimmed)}</p>`;

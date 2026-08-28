@@ -83,5 +83,22 @@ describe('ItemBuilder Module', () => {
       assert.ok(xml.includes('identifier="correct_fb"'));
       assert.ok(xml.includes('Comentário geral para o aluno.'));
     });
+
+    it('deve preservar listas (ul, ol, li), tabelas e recuos no XML do pacote QTI', () => {
+      const richQuestion = {
+        id: 3,
+        type: 'discursive',
+        title: 'Questão 3',
+        prompt: '<p>Analise os tópicos:</p><ul><li>Tópico A</li><li>Tópico B</li></ul><blockquote>Citação importante</blockquote>',
+        options: [],
+        modelAnswer: '<ol><li>Critério 1</li><li>Critério 2</li></ol>',
+        feedback: '<p>Excelente análise!</p>'
+      };
+
+      const xml = ItemBuilder.build(richQuestion, 3);
+      assert.ok(xml.includes('<ul><li>Tópico A</li><li>Tópico B</li></ul>'));
+      assert.ok(xml.includes('<blockquote>Citação importante</blockquote>'));
+      assert.ok(xml.includes('<ol><li>Critério 1</li><li>Critério 2</li></ol>'));
+    });
   });
 });

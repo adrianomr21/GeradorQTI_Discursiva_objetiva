@@ -105,4 +105,37 @@ técnicas e subáreas.</p>`;
     assert.strictEqual(parsed.options[1].letter, 'b');
     assert.ok(parsed.feedback.includes('A Inteligência Artificial é corretamente descrita'));
   });
+
+  it('deve parsear perfeitamente questões com listas (ul, ol) e recuos (blockquote)', () => {
+    const listHtml = `
+      <p>Questão 3</p>
+      <p>Considere os itens da lista a seguir:</p>
+      <ul>
+        <li>Primeiro item da lista</li>
+        <li>Segundo item com sub-itens:
+          <ol>
+            <li>Sub-item 1</li>
+            <li>Sub-item 2</li>
+          </ol>
+        </li>
+      </ul>
+      <blockquote>Texto em bloco recuado</blockquote>
+      <p>*a) Alternativa com lista:</p>
+      <ol><li>Opção 1</li></ol>
+      <p>b) Segunda alternativa</p>
+      <p>Feedback:</p>
+      <p>Feedback com lista:</p>
+      <ul><li>Item do feedback</li></ul>
+    `;
+
+    const parsed = QuestionParser.parse(listHtml, 3);
+    assert.ok(parsed);
+    assert.strictEqual(parsed.type, 'multiple_choice');
+    assert.ok(parsed.prompt.includes('<ul>'));
+    assert.ok(parsed.prompt.includes('<li>Primeiro item da lista</li>'));
+    assert.ok(parsed.prompt.includes('<blockquote>'));
+    assert.strictEqual(parsed.options.length, 2);
+    assert.strictEqual(parsed.options[0].isCorrect, true);
+    assert.ok(parsed.feedback.includes('<ul><li>Item do feedback</li></ul>'));
+  });
 });

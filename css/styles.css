@@ -30,7 +30,7 @@ body {
 }
 
 .container {
-  max-width: 1300px;
+  /*max-width: 1300px;*/
   margin: 0 auto;
 }
 
@@ -348,6 +348,83 @@ header p {
   background: #0f172a;
   color: #38bdf8;
   resize: vertical;
+}
+
+/* Listas e Identação no Editor e nos Cards */
+.rich-editor-content ul:not(.q-options-list),
+.question-card ul:not(.q-options-list),
+.q-card-body ul:not(.q-options-list),
+.q-prompt ul:not(.q-options-list),
+.q-formatted-content ul:not(.q-options-list),
+.q-model-answer ul:not(.q-options-list),
+.q-feedback ul:not(.q-options-list) {
+  list-style-type: disc;
+  margin: 8px 0 8px 26px;
+  padding-left: 6px;
+}
+
+.rich-editor-content ol:not(.q-options-list),
+.question-card ol:not(.q-options-list),
+.q-card-body ol:not(.q-options-list),
+.q-prompt ol:not(.q-options-list),
+.q-formatted-content ol:not(.q-options-list),
+.q-model-answer ol:not(.q-options-list),
+.q-feedback ol:not(.q-options-list) {
+  list-style-type: decimal;
+  margin: 8px 0 8px 26px;
+  padding-left: 6px;
+}
+
+.rich-editor-content li,
+.question-card li:not(.q-options-list li),
+.q-card-body li:not(.q-options-list li),
+.q-prompt li,
+.q-formatted-content li,
+.q-model-answer li,
+.q-feedback li {
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.rich-editor-content ul ul,
+.question-card ul ul,
+.q-prompt ul ul,
+.q-formatted-content ul ul {
+  list-style-type: circle;
+  margin: 4px 0 4px 20px;
+}
+
+.rich-editor-content ol ol,
+.question-card ol ol,
+.q-prompt ol ol,
+.q-formatted-content ol ol,
+.rich-editor-content ul ol,
+.question-card ul ol,
+.q-prompt ul ol,
+.q-formatted-content ul ol {
+  margin: 4px 0 4px 20px;
+}
+
+/* Recuos / Indentação (Blockquote) */
+.rich-editor-content blockquote,
+.question-card blockquote,
+.q-prompt blockquote,
+.q-formatted-content blockquote,
+.q-model-answer blockquote,
+.q-feedback blockquote {
+  margin: 8px 0 8px 24px;
+  padding: 4px 10px;
+  border-left: 3px solid #cbd5e1;
+  color: #334155;
+  background: #f8fafc;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Parágrafos dentro de prompt e cards */
+.rich-editor-content p,
+.q-prompt p,
+.q-formatted-content p {
+  margin-bottom: 6px;
 }
 
 /* Table in editor and cards */

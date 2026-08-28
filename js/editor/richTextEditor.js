@@ -106,7 +106,19 @@ export const RichTextEditor = {
       });
     }
 
-    // 5. Monitoramento de clique para ativação das barras contextuais
+    // 5. Atalho de teclado para Identação com Tab e Shift+Tab
+    this.editorElement.addEventListener('keydown', (e) => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          this.execCmd('outdent');
+        } else {
+          this.execCmd('indent');
+        }
+      }
+    });
+
+    // 6. Monitoramento de clique para ativação das barras contextuais
     this.editorElement.addEventListener('click', (e) => {
       this.handleEditorClick(e);
     });

@@ -64,6 +64,8 @@ function init() {
   document.getElementById('btn-tool-sub')?.addEventListener('click', () => RichTextEditor.execCmd('subscript'));
   document.getElementById('btn-tool-ul')?.addEventListener('click', () => RichTextEditor.execCmd('insertUnorderedList'));
   document.getElementById('btn-tool-ol')?.addEventListener('click', () => RichTextEditor.execCmd('insertOrderedList'));
+  document.getElementById('btn-tool-indent')?.addEventListener('click', () => RichTextEditor.execCmd('indent'));
+  document.getElementById('btn-tool-outdent')?.addEventListener('click', () => RichTextEditor.execCmd('outdent'));
   document.getElementById('btn-tool-table')?.addEventListener('click', () => RichTextEditor.insertTable(3, 3));
   document.getElementById('btn-tool-link')?.addEventListener('click', () => RichTextEditor.insertLink());
   document.getElementById('btn-tool-image')?.addEventListener('click', () => RichTextEditor.triggerImageUpload());
@@ -232,10 +234,10 @@ function render() {
           <button class="btn-remove" onclick="removeQuestion(${idx})" title="Remover questão">&times;</button>
         </div>
         <div class="q-card-body">
-          <p class="q-prompt">${q.prompt.replace(/\n/g, '<br>')}</p>
+          <div class="q-prompt">${q.prompt}</div>
           ${optionsHtml}
-          ${q.modelAnswer ? `<div class="q-model-answer"><strong>Padrão de Resposta:</strong><br>${q.modelAnswer.replace(/\n/g, '<br>')}</div>` : ''}
-          ${q.feedback ? `<div class="q-feedback"><strong>Feedback:</strong><br>${q.feedback.replace(/\n/g, '<br>')}</div>` : ''}
+          ${q.modelAnswer ? `<div class="q-model-answer"><strong>Padrão de Resposta:</strong><div class="q-formatted-content">${q.modelAnswer}</div></div>` : ''}
+          ${q.feedback ? `<div class="q-feedback"><strong>Feedback:</strong><div class="q-formatted-content">${q.feedback}</div></div>` : ''}
         </div>
       </div>
     `;
