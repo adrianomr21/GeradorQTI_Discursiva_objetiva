@@ -117,7 +117,7 @@ export const ZipBuilder = {
 
       // 7. Dispara o download automático no navegador
       const sanitizedName = title.replace(/[^a-zA-Z0-9_\-]/g, '_');
-      const filename = `Pool_ExportFile_${sanitizedName}.zip`;
+      const filename = `${sanitizedName}.zip`;
 
       const downloadUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');

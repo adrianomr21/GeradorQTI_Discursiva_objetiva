@@ -4,9 +4,10 @@ import { ZipBuilder } from './qti/zipBuilder.js';
 import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
-const state = {
+export const state = {
   title: 'Atividade Avaliativa',
-  questions: []
+  questions: [],
+  editingIndex: null // Índice da questão sendo editada ou null
 };
 
 // Exemplos pré-configurados para teste rápido
@@ -29,25 +30,80 @@ const SAMPLES = {
 <p>Muito bem! A resposta deve destacar a eliminação de anomalias de inserção, alteração e exclusão.</p>`
 };
 
-// Elementos da Interface
-const elements = {
-  activityTitle: document.getElementById('activity-title'),
-  btnAddQuestion: document.getElementById('btn-add-question'),
-  btnClearInput: document.getElementById('btn-clear-input'),
-  btnExportZip: document.getElementById('btn-export-zip'),
-  btnClearAll: document.getElementById('btn-clear-all'),
-  btnSampleObj: document.getElementById('btn-sample-obj'),
-  btnSampleDisc: document.getElementById('btn-sample-disc'),
-  jsonPreview: document.getElementById('json-preview'),
-  questionsList: document.getElementById('questions-list'),
-  questionCount: document.getElementById('question-count'),
-  btnClearLogs: document.getElementById('btn-clear-logs')
-};
+// Elementos da Interface (inicializados dinamicamente no navegador)
+let elements = {};
+
+function initElements() {
+  if (typeof document === 'undefined') return;
+  elements = {
+    activityTitle: document.getElementById('activity-title'),
+    btnAddQuestion: document.getElementById('btn-add-question'),
+    btnClearInput: document.getElementById('btn-clear-input'),
+    btnExportZip: document.getElementById('btn-export-zip'),
+    btnClearAll: document.getElementById('btn-clear-all'),
+    btnSampleObj: document.getElementById('btn-sample-obj'),
+    btnSampleDisc: document.getElementById('btn-sample-disc'),
+    jsonPreview: document.getElementById('json-preview'),
+    questionsList: document.getElementById('questions-list'),
+    questionCount: document.getElementById('question-count'),
+    btnClearLogs: document.getElementById('btn-clear-logs'),
+    editBanner: document.getElementById('editor-edit-banner'),
+    editQuestionNum: document.getElementById('edit-question-num'),
+    btnBannerCancelEdit: document.getElementById('btn-banner-cancel-edit')
+  };
+}
+
+/**
+ * Reconstrói o HTML formatado de uma questão para ser recarregado no Editor.
+ * @param {Object} q - Objeto da questão
+ * @returns {string} HTML pronto para o WYSIWYG
+ */
+export function questionToEditorHtml(q) {
+  if (!q) return '';
+  let html = `<p><strong>${q.title || `Questão ${q.id}`}</strong></p>\n`;
+  html += `${q.prompt}\n`;
+
+  if (q.type === 'multiple_choice' && q.options) {
+    q.options.forEach(opt => {
+      const prefix = opt.isCorrect ? `*${opt.letter.toUpperCase()})` : `${opt.letter.toUpperCase()})`;
+      let optText = (opt.text || '').trim();
+      if (optText.startsWith('<p') || optText.startsWith('<div')) {
+        optText = optText.replace(/^(<[a-z]+[^>]*>)/i, `$1<strong>${prefix}</strong> `);
+        html += `${optText}\n`;
+      } else {
+        html += `<p><strong>${prefix}</strong> ${optText}</p>\n`;
+      }
+    });
+  } else if (q.type === 'discursive') {
+    if (q.modelAnswer) {
+      let ans = q.modelAnswer.trim();
+      if (ans.startsWith('<p') || ans.startsWith('<div')) {
+        html += `<p><strong>Padrão de resposta:</strong></p>\n${ans}\n`;
+      } else {
+        html += `<p><strong>Padrão de resposta:</strong> ${ans}</p>\n`;
+      }
+    }
+  }
+
+  if (q.feedback) {
+    let fb = q.feedback.trim();
+    if (fb.startsWith('<p') || fb.startsWith('<div')) {
+      html += `<p><strong>Feedback:</strong></p>\n${fb}\n`;
+    } else {
+      html += `<p><strong>Feedback:</strong> ${fb}</p>\n`;
+    }
+  }
+
+  return html.trim();
+}
 
 /**
  * Inicializa a aplicação e registra os eventos
  */
 function init() {
+  // 0. Mapeia elementos do DOM
+  initElements();
+
   // 1. Inicializa o Editor de Texto Rico
   RichTextEditor.init({
     editorId: 'editor-content',
@@ -72,14 +128,12 @@ function init() {
   document.getElementById('btn-tool-clear')?.addEventListener('click', () => RichTextEditor.clearFormatting());
   document.getElementById('btn-tool-source')?.addEventListener('click', () => RichTextEditor.toggleSourceMode());
 
-  // 3. Botão Adicionar Questão
-  elements.btnAddQuestion.addEventListener('click', handleAddQuestion);
+  // 3. Botão Adicionar ou Salvar Questão
+  elements.btnAddQuestion.addEventListener('click', handleSaveOrAddQuestion);
 
-  // 4. Botão Limpar Entrada
-  elements.btnClearInput.addEventListener('click', () => {
-    RichTextEditor.clear();
-    Logger.info('Editor de texto limpo.');
-  });
+  // 4. Botão Limpar / Cancelar Edição
+  elements.btnClearInput.addEventListener('click', handleCancelOrClear);
+  elements.btnBannerCancelEdit?.addEventListener('click', handleCancelOrClear);
 
   // 5. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
@@ -89,12 +143,22 @@ function init() {
 
   // 7. Botões de Exemplos Rápidos
   elements.btnSampleObj.addEventListener('click', () => {
+    if (state.editingIndex !== null) {
+      if (!confirm('Você está editando uma questão. Carregar o exemplo cancelará a edição atual. Continuar?')) return;
+      state.editingIndex = null;
+    }
     RichTextEditor.setHtml(SAMPLES.objective);
+    render();
     Logger.info('Exemplo formatado de questão Objetiva carregado no editor.');
   });
 
   elements.btnSampleDisc.addEventListener('click', () => {
+    if (state.editingIndex !== null) {
+      if (!confirm('Você está editando uma questão. Carregar o exemplo cancelará a edição atual. Continuar?')) return;
+      state.editingIndex = null;
+    }
     RichTextEditor.setHtml(SAMPLES.discursive);
+    render();
     Logger.info('Exemplo formatado de questão Discursiva carregado no editor.');
   });
 
@@ -113,24 +177,109 @@ function init() {
 }
 
 /**
- * Adiciona a questão colada ao estado (JSON)
+ * Adiciona uma nova questão ou salva a alteração da questão em edição na mesma posição
  */
-function handleAddQuestion() {
+function handleSaveOrAddQuestion() {
   const content = RichTextEditor.getHtml().trim();
   if (!content) {
-    Logger.warn('Por favor, digite ou cole o conteúdo da questão antes de adicionar.');
+    Logger.warn('Por favor, digite ou cole o conteúdo da questão antes de salvar.');
     return;
   }
 
-  const nextIndex = state.questions.length + 1;
-  const parsed = QuestionParser.parse(content, nextIndex);
+  if (state.editingIndex !== null) {
+    // MODO EDIÇÃO: Atualiza a questão na mesma posição
+    const index = state.editingIndex;
+    const currentQuestion = state.questions[index];
+    const targetId = currentQuestion ? currentQuestion.id : (index + 1);
 
-  if (parsed) {
-    state.questions.push(parsed);
+    const parsed = QuestionParser.parse(content, targetId);
+    if (parsed) {
+      // Substitui na mesma posição do array
+      state.questions[index] = parsed;
+      state.editingIndex = null;
+      RichTextEditor.clear();
+      render();
+      Logger.success(`Questão #${parsed.id} atualizada com sucesso na mesma posição!`);
+    }
+  } else {
+    // MODO ADIÇÃO: Cria uma nova questão no fim da lista
+    const nextIndex = state.questions.length + 1;
+    const parsed = QuestionParser.parse(content, nextIndex);
+    if (parsed) {
+      state.questions.push(parsed);
+      RichTextEditor.clear();
+      render();
+      Logger.success(`Questão #${parsed.id} adicionada à lista.`);
+    }
+  }
+}
+
+/**
+ * Cancela o modo de edição ou limpa o editor de texto
+ */
+function handleCancelOrClear() {
+  if (state.editingIndex !== null) {
+    const editId = state.questions[state.editingIndex]?.id || (state.editingIndex + 1);
+    state.editingIndex = null;
     RichTextEditor.clear();
     render();
-    Logger.success(`Questão #${parsed.id} adicionada à lista.`);
+    Logger.info(`Edição da Questão #${editId} cancelada.`);
+  } else {
+    RichTextEditor.clear();
+    Logger.info('Editor de texto limpo.');
   }
+}
+
+/**
+ * Carrega a questão selecionada de volta para o editor para alteração in-place
+ */
+export function editQuestion(index) {
+  const question = state.questions[index];
+  if (!question) return;
+
+  state.editingIndex = index;
+  const html = questionToEditorHtml(question);
+  RichTextEditor.setHtml(html);
+
+  // Scroll suave até o container do editor
+  const editorEl = typeof document !== 'undefined' ? document.querySelector('.editor-container') : null;
+  if (editorEl) {
+    editorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  RichTextEditor.editorElement?.focus();
+  render();
+  Logger.info(`Questão #${question.id} carregada no editor para alteração. Faça os ajustes e clique em "Salvar Alterações".`);
+}
+
+/**
+ * Remove uma questão específica pelo índice
+ */
+export function removeQuestion(index) {
+  // Se estiver editando a questão sendo removida, cancela o modo de edição
+  if (state.editingIndex === index) {
+    state.editingIndex = null;
+    RichTextEditor.clear();
+  } else if (state.editingIndex !== null && state.editingIndex > index) {
+    state.editingIndex--;
+  }
+
+  state.questions.splice(index, 1);
+  // Re-indexa os IDs
+  state.questions.forEach((q, i) => {
+    q.id = i + 1;
+    if (q.title.startsWith('Questão')) {
+      q.title = `Questão ${i + 1}`;
+    }
+  });
+  render();
+  Logger.info(`Questão removida. Restam ${state.questions.length} questões.`);
+}
+
+// Expõe globalmente para os onclick dos cards no navegador
+if (typeof window !== 'undefined') {
+  window.editQuestion = editQuestion;
+  window.removeQuestion = removeQuestion;
 }
 
 /**
@@ -161,26 +310,12 @@ function handleClearAll() {
   
   if (confirm('Deseja realmente limpar todas as questões cadastradas?')) {
     state.questions = [];
+    state.editingIndex = null;
+    RichTextEditor.clear();
     render();
     Logger.info('Todas as questões foram removidas.');
   }
 }
-
-/**
- * Remove uma questão específica pelo índice
- */
-window.removeQuestion = function(index) {
-  state.questions.splice(index, 1);
-  // Re-indexa os IDs
-  state.questions.forEach((q, i) => {
-    q.id = i + 1;
-    if (q.title.startsWith('Questão')) {
-      q.title = `Questão ${i + 1}`;
-    }
-  });
-  render();
-  Logger.info(`Questão removida. Restam ${state.questions.length} questões.`);
-};
 
 /**
  * Atualiza os componentes visuais na tela
@@ -195,7 +330,25 @@ function render() {
   // 3. Atualiza JSON Preview
   elements.jsonPreview.textContent = JSON.stringify(state.questions, null, 2);
 
-  // 4. Atualiza Lista de Questões
+  // 4. Atualiza Banner e Botões no Modo de Edição
+  if (state.editingIndex !== null && state.questions[state.editingIndex]) {
+    const currentQ = state.questions[state.editingIndex];
+    if (elements.editBanner) elements.editBanner.style.display = 'flex';
+    if (elements.editQuestionNum) elements.editQuestionNum.textContent = currentQ.id;
+
+    elements.btnAddQuestion.textContent = `💾 Salvar Alterações (Questão #${currentQ.id})`;
+    elements.btnAddQuestion.className = 'btn btn-success';
+    elements.btnClearInput.textContent = '❌ Cancelar Edição';
+    elements.btnClearInput.className = 'btn btn-danger-outline';
+  } else {
+    if (elements.editBanner) elements.editBanner.style.display = 'none';
+    elements.btnAddQuestion.textContent = '➕ Adicionar Questão ao JSON';
+    elements.btnAddQuestion.className = 'btn btn-primary';
+    elements.btnClearInput.textContent = 'Limpar Editor';
+    elements.btnClearInput.className = 'btn btn-outline';
+  }
+
+  // 5. Atualiza Lista de Questões
   if (state.questions.length === 0) {
     elements.questionsList.innerHTML = `
       <div class="empty-state">
@@ -210,6 +363,7 @@ function render() {
     const isObj = q.type === 'multiple_choice';
     const badgeClass = isObj ? 'badge-obj' : 'badge-disc';
     const typeLabel = isObj ? 'Objetiva' : 'Discursiva';
+    const isEditing = state.editingIndex === idx;
 
     let optionsHtml = '';
     if (isObj && q.options.length > 0) {
@@ -225,13 +379,17 @@ function render() {
     }
 
     return `
-      <div class="question-card">
+      <div class="question-card ${isEditing ? 'question-card-editing' : ''}">
         <div class="q-card-header">
           <div class="q-card-title">
             <span class="q-badge ${badgeClass}">${typeLabel}</span>
             <strong>${q.title}</strong>
+            ${isEditing ? '<span style="color: #2563eb; font-size: 0.78rem; font-weight: 600;">(Editando no momento)</span>' : ''}
           </div>
-          <button class="btn-remove" onclick="removeQuestion(${idx})" title="Remover questão">&times;</button>
+          <div class="q-card-actions">
+            <button class="btn-card-action btn-edit" onclick="editQuestion(${idx})" title="Editar esta questão">✏️</button>
+            <button class="btn-card-action btn-remove" onclick="removeQuestion(${idx})" title="Remover questão">&times;</button>
+          </div>
         </div>
         <div class="q-card-body">
           <div class="q-prompt">${q.prompt}</div>
@@ -245,4 +403,7 @@ function render() {
 }
 
 // Inicia quando o DOM estiver carregado
-document.addEventListener('DOMContentLoaded', init);
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', init);
+}
+

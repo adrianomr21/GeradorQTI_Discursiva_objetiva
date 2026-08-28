@@ -48,6 +48,14 @@
             </ul>
           </div>
 
+          <!-- Banner de Modo de Edição -->
+          <div id="editor-edit-banner" class="edit-banner" style="display: none;">
+            <div class="edit-banner-text">
+              <span>✏️ Modo de Edição: <strong>Questão #<span id="edit-question-num">1</span></strong> (Alterações substituirão esta posição).</span>
+            </div>
+            <button type="button" class="btn-cancel-edit" id="btn-banner-cancel-edit">Cancelar</button>
+          </div>
+
           <div class="editor-container">
             <!-- Barra de Ferramentas (Toolbar) -->
             <div class="editor-toolbar" id="editor-toolbar">
@@ -126,10 +134,12 @@
           </div>
 
           <!-- Visualizador do JSON Gerado -->
+          <!--
           <details class="json-container" open>
             <summary>Visualizar Estrutura JSON das Questões</summary>
             <pre id="json-preview">[]</pre>
           </details>
+          -->
         </div>
       </section>
 
@@ -165,6 +175,13 @@
       <div id="log-console" class="log-console">
         <!-- Linhas de log inseridas dinamicamente pelo logger.js -->
       </div>
+      
+      <!-- Visualizador do JSON Gerado -->
+      <details class="json-container" closed>
+        <summary>Visualizar Estrutura JSON das Questões</summary>
+        <pre id="json-preview">[]</pre>
+      </details>
+
     </section>
 
   </div>

@@ -12,6 +12,11 @@ Um sistema web em **JavaScript puro e modular** (ES6 Modules) desenvolvido para 
   - **Gestão e Redimensionamento de Imagens**: Upload via botão, colagem direta (**`Ctrl+V`**) e **Arrastar e Soltar**. Barra contextual de redimensionamento (`25%`, `50%`, `75%`, `100%`, `tamanho em px`) e alinhamento (`Esquerda`, `Centro`, `Direita`).
   - **Higienização de HTML (Clear HTML)**: Limpa marcações sujas copiadas do Word ou Google Docs mantendo a estrutura semântica limpa e preservando estilos válidos de layout.
   - **Alternador de Código Fonte (Modo HTML)**: Permite visualizar e editar o código-fonte HTML puro da questão diretamente.
+- **Edição In-Place de Questões Cadastradas**:
+  - Ícone de edição (`✏️`) em cada card de questão cadastrada.
+  - Carrega todo o enunciado, alternativas, padrões de resposta e feedbacks de volta no editor visual com formatação completa.
+  - **Garantia de Posição**: As alterações substituem a questão exatamente na mesma posição/ordem no array, sem duplicar nem criar novas questões.
+  - Banner informativo com botão para salvar (`💾 Salvar Alterações`) ou cancelar (`❌ Cancelar Edição`).
 - **Múltipla Escolha (Objetiva)**:
   - Identificação automática da alternativa correta marcada com um asterisco (`*`).
   - Geração de regras de pontuação automática (`<responseProcessing>`).
@@ -58,9 +63,10 @@ GeradorQTI_Discursiva_objetiva/
 │       ├── testBuilder.js       # Gerador do question_bank00001.xml (agrupador de teste)
 │       ├── manifestBuilder.js   # Gerador do imsmanifest.xml (índice, recursos e mídias)
 │       └── zipBuilder.js        # Montador da árvore de arquivos e disparador do download .zip
-├── tests/                       # Suíte de testes automatizados (42 testes unitários)
+├── tests/                       # Suíte de testes automatizados (46 testes unitários)
 │   ├── parser.test.js
 │   ├── richParser.test.js
+│   ├── editQuestion.test.js
 │   ├── tableHelper.test.js
 │   ├── imageHelper.test.js
 │   ├── htmlSanitizer.test.js
