@@ -175,12 +175,14 @@ export const QuestionParser = {
       // É Múltipla Escolha
       const correctCount = restoredOptions.filter(opt => opt.isCorrect).length;
       let needsCorrectAnswerAdjustment = false;
+      let hadMultipleCorrectAnswers = false;
 
       if (correctCount === 0) {
         Logger.warn(`Atenção: Nenhuma alternativa com '*' foi marcada na "${restoredTitle}". Ajustar alternativa correta.`);
         needsCorrectAnswerAdjustment = true;
       } else if (correctCount > 1) {
-        Logger.warn(`Atenção: Mais de uma alternativa marcada com '*' na "${restoredTitle}". Apenas a primeira marcada será mantida como correta.`);
+        Logger.warn(`Atenção: Mais de uma alternativa marcada com '*' na "${restoredTitle}". Só pode haver uma alternativa correta (apenas a primeira foi mantida).`);
+        hadMultipleCorrectAnswers = true;
         let foundFirst = false;
         restoredOptions.forEach(opt => {
           if (opt.isCorrect) {
@@ -188,6 +190,32 @@ export const QuestionParser = {
             else opt.isCorrect = false;
           }
         });
+      }
+
+      // Verifica duplicidade de alternativas (por letra ou por conteúdo de texto)
+      const seenLetters = new Set();
+      const seenTexts = new Set();
+      let hasDuplicateOptions = false;
+
+      for (const opt of restoredOptions) {
+        const normLetter = (opt.letter || '').toLowerCase().trim();
+        const plainText = this.stripHtml(opt.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+        if (normLetter && seenLetters.has(normLetter)) {
+          hasDuplicateOptions = true;
+        } else if (normLetter) {
+          seenLetters.add(normLetter);
+        }
+
+        if (plainText.length > 0 && seenTexts.has(plainText)) {
+          hasDuplicateOptions = true;
+        } else if (plainText.length > 0) {
+          seenTexts.add(plainText);
+        }
+      }
+
+      if (hasDuplicateOptions) {
+        Logger.warn(`Atenção: Foram identificadas alternativas repetidas na "${restoredTitle}".`);
       }
 
       const correctOpt = restoredOptions.find(opt => opt.isCorrect);
@@ -202,7 +230,9 @@ export const QuestionParser = {
         options: restoredOptions,
         modelAnswer: modelAnswer,
         feedback: feedback,
-        needsCorrectAnswerAdjustment: needsCorrectAnswerAdjustment
+        needsCorrectAnswerAdjustment: needsCorrectAnswerAdjustment,
+        hadMultipleCorrectAnswers: hadMultipleCorrectAnswers,
+        hasDuplicateOptions: hasDuplicateOptions
       };
     } else {
       // É Discursiva

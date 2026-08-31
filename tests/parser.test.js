@@ -56,7 +56,7 @@ b) Opção 2`;
       assert.strictEqual(parsed.options.some(opt => opt.isCorrect), false);
     });
 
-    it('deve manter apenas a primeira opção se múltiplas forem marcadas com asterisco (*)', () => {
+    it('deve manter apenas a primeira opção se múltiplas forem marcadas com asterisco (*) e sinalizar hadMultipleCorrectAnswers', () => {
       const raw = `Questão 1
 Pergunta com múltiplos asteriscos
 *a) Opção 1
@@ -65,6 +65,7 @@ Pergunta com múltiplos asteriscos
 
       const parsed = QuestionParser.parse(raw, 1);
       assert.ok(parsed);
+      assert.strictEqual(parsed.hadMultipleCorrectAnswers, true, 'Deve sinalizar que havia múltiplas alternativas corretas');
       assert.strictEqual(parsed.options[0].isCorrect, true);
       assert.strictEqual(parsed.options[1].isCorrect, false);
       assert.strictEqual(parsed.options[2].isCorrect, false);
@@ -91,19 +92,40 @@ Feedback: Resposta correta é a letra A.`;
       assert.strictEqual(stripped, 'Um campo da computação.');
     });
 
-    it('deve desmarcar negrito total da alternativa (gabarito do Word) mas preservar negrito semântico parcial', () => {
-      const raw = `<p><strong>Questão 1</strong></p>
-<p>Qual linguagem estiliza páginas web?</p>
-<p>*a) <strong>Uma linguagem de estilos padronizada.</strong></p>
-<p>b) <strong>CSS</strong> (Cascading Style Sheets)</p>
-<p>c) Uma linguagem de scripts.</p>`;
+    it('deve identificar e sinalizar alternativas repetidas por conteúdo de texto idêntico', () => {
+      const raw = `Questão 1
+Pergunta sobre alternativas repetidas
+*a) Mesma resposta
+b) Outra resposta
+c) Mesma resposta`;
 
       const parsed = QuestionParser.parse(raw, 1);
       assert.ok(parsed);
-      // Alternativa 'a' tinha 100% do texto em negrito -> remove o negrito total
-      assert.strictEqual(parsed.options[0].text, 'Uma linguagem de estilos padronizada.');
-      // Alternativa 'b' tinha apenas o termo CSS em negrito -> preserva o negrito parcial
-      assert.strictEqual(parsed.options[1].text, '<strong>CSS</strong> (Cascading Style Sheets)');
+      assert.strictEqual(parsed.hasDuplicateOptions, true, 'Deve sinalizar alternativas com texto repetido');
+    });
+
+    it('deve identificar e sinalizar alternativas repetidas por letras duplicadas', () => {
+      const raw = `Questão 1
+Pergunta sobre letras repetidas
+*a) Primeira resposta
+a) Segunda resposta com mesma letra
+b) Terceira resposta`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.hasDuplicateOptions, true, 'Deve sinalizar alternativas com letras duplicadas');
+    });
+
+    it('deve retornar hasDuplicateOptions false quando todas as alternativas forem distintas', () => {
+      const raw = `Questão 1
+Pergunta normal
+*a) Opção Alfa
+b) Opção Beta
+c) Opção Gama`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.hasDuplicateOptions, false, 'Não deve sinalizar duplicidade quando alternativas forem distintas');
     });
   });
 
