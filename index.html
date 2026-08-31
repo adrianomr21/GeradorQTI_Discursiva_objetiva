@@ -67,35 +67,94 @@
           <div class="editor-container">
             <!-- Barra de Ferramentas (Toolbar) -->
             <div class="editor-toolbar" id="editor-toolbar">
+              <!-- Histórico: Desfazer / Refazer -->
               <div class="toolbar-group">
-                <button type="button" class="tool-btn" id="btn-tool-bold" title="Negrito (Ctrl+B)"><b>B</b></button>
-                <button type="button" class="tool-btn" id="btn-tool-italic" title="Itálico (Ctrl+I)"><i>I</i></button>
-                <button type="button" class="tool-btn" id="btn-tool-underline" title="Sublinhado (Ctrl+U)"><u>U</u></button>
-                <button type="button" class="tool-btn" id="btn-tool-strike" title="Tachado"><s>S</s></button>
+                <button type="button" class="tool-btn" id="btn-tool-undo" title="Desfazer (Ctrl+Z)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-redo" title="Refazer (Ctrl+Y)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7"/></svg>
+                </button>
               </div>
 
+              <!-- Formatação de Texto -->
               <div class="toolbar-group">
-                <button type="button" class="tool-btn" id="btn-tool-sup" title="Sobrescrito (x²)">x²</button>
-                <button type="button" class="tool-btn" id="btn-tool-sub" title="Subscrito (x₂)">x₂</button>
+                <button type="button" class="tool-btn" id="btn-tool-bold" title="Negrito (Ctrl+B)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/><path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-italic" title="Itálico (Ctrl+I)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="19" y1="4" x2="10" y2="4"/><line x1="14" y1="20" x2="5" y2="20"/><line x1="15" y1="4" x2="9" y2="20"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-underline" title="Sublinhado (Ctrl+U)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M6 3v7a6 6 0 0 0 12 0V3"/><line x1="4" y1="21" x2="20" y2="21"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-strike" title="Tachado">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M17.3 4.9c-1.2-.6-2.6-.9-4.1-.9-4 0-6.2 2-6.2 4.6 0 2.2 1.5 3.5 4.3 4.2"/><path d="M16 16.5c-1 1-2.4 1.5-4 1.5-3.3 0-5.5-1.7-5.5-4"/><line x1="4" y1="12" x2="20" y2="12"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-sup" title="Sobrescrito (x²)">
+                  <span class="tool-icon-text">x<sup>2</sup></span>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-sub" title="Subscrito (x₂)">
+                  <span class="tool-icon-text">x<sub>2</sub></span>
+                </button>
               </div>
 
+              <!-- Alinhamento de Texto -->
               <div class="toolbar-group">
-                <button type="button" class="tool-btn" id="btn-tool-ul" title="Lista com Marcadores">• Lista</button>
-                <button type="button" class="tool-btn" id="btn-tool-ol" title="Lista Numerada">1. Lista</button>
-                <button type="button" class="tool-btn" id="btn-tool-outdent" title="Diminuir Recuo / Identação (Shift+Tab)">⇤ Recuo</button>
-                <button type="button" class="tool-btn" id="btn-tool-indent" title="Aumentar Recuo / Identação (Tab)">⇥ Recuo</button>
+                <button type="button" class="tool-btn" id="btn-tool-align-left" title="Alinhar à Esquerda">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-align-center" title="Centralizar">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-align-right" title="Alinhar à Direita">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-align-justify" title="Justificar">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></svg>
+                </button>
               </div>
 
+              <!-- Listas e Recuos -->
               <div class="toolbar-group">
-                <button type="button" class="tool-btn" id="btn-tool-table" title="Inserir Tabela">📊 Tabela</button>
-                <button type="button" class="tool-btn" id="btn-tool-latex" title="Inserir Fórmula Matemática (LaTeX)">🧮 LaTeX</button>
-                <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir ou Editar Link">🔗 Link</button>
-                <button type="button" class="tool-btn" id="btn-tool-image" title="Upload / Inserir Imagem">🖼️ Imagem</button>
+                <button type="button" class="tool-btn" id="btn-tool-ul" title="Lista com Marcadores">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="9" y1="6" x2="20" y2="6"/><line x1="9" y1="12" x2="20" y2="12"/><line x1="9" y1="18" x2="20" y2="18"/><circle cx="4" cy="6" r="1.5" fill="currentColor"/><circle cx="4" cy="12" r="1.5" fill="currentColor"/><circle cx="4" cy="18" r="1.5" fill="currentColor"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-ol" title="Lista Numerada">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1.5v4"/><path d="M3.5 10h3"/><path d="M6.5 18H3.5c0-1 2-1.8 2-2.8s-.8-1.4-1.8-1.2"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-outdent" title="Diminuir Recuo (Shift+Tab)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="18" x2="11" y2="18"/><polyline points="7 8 3 12 7 16"/><line x1="3" y1="12" x2="11" y2="12"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-indent" title="Aumentar Recuo (Tab)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><line x1="21" y1="6" x2="11" y2="6"/><line x1="21" y1="12" x2="11" y2="12"/><line x1="21" y1="18" x2="11" y2="18"/><polyline points="7 16 11 12 7 8"/><line x1="11" y1="12" x2="3" y2="12"/></svg>
+                </button>
               </div>
 
-              <div class="toolbar-group toolbar-right">
-                <button type="button" class="tool-btn" id="btn-tool-clear" title="Limpar Formatação Suja / Clear HTML">🧹 Limpar HTML</button>
-                <button type="button" class="tool-btn" id="btn-tool-source" title="Ver / Editar Código Fonte HTML">&lt;/&gt; HTML</button>
+              <!-- Inserções: Tabela, LaTeX, Link, Imagem -->
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-table" title="Inserir Tabela">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-latex" title="Inserir Fórmula Matemática (LaTeX)">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M4 18l3.5-12h3l2.5 9 2.5-6h3.5"/><line x1="2" y1="6" x2="7" y2="6"/><path d="M17 14l2 4 3-6"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir ou Editar Link">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-image" title="Upload / Inserir Imagem">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </button>
+              </div>
+
+              <!-- Utilitários: Limpar Formatação, Código Fonte HTML -->
+              <div class="toolbar-group">
+                <button type="button" class="tool-btn" id="btn-tool-clear" title="Limpar Formatação Suja / Limpar HTML">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><path d="M18 14l-6 6h-6l-3-3 9-9 6 6z"/><path d="M15 5l4 4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+                </button>
+                <button type="button" class="tool-btn" id="btn-tool-source" title="Ver / Editar Código Fonte HTML">
+                  <svg viewBox="0 0 24 24" class="tool-icon"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                </button>
               </div>
             </div>
 

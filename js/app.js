@@ -122,16 +122,22 @@ function init() {
   });
 
   // 2. Conecta os botões da barra de ferramentas do Editor
+  document.getElementById('btn-tool-undo')?.addEventListener('click', () => RichTextEditor.execCmd('undo'));
+  document.getElementById('btn-tool-redo')?.addEventListener('click', () => RichTextEditor.execCmd('redo'));
   document.getElementById('btn-tool-bold')?.addEventListener('click', () => RichTextEditor.execCmd('bold'));
   document.getElementById('btn-tool-italic')?.addEventListener('click', () => RichTextEditor.execCmd('italic'));
   document.getElementById('btn-tool-underline')?.addEventListener('click', () => RichTextEditor.execCmd('underline'));
   document.getElementById('btn-tool-strike')?.addEventListener('click', () => RichTextEditor.execCmd('strikeThrough'));
   document.getElementById('btn-tool-sup')?.addEventListener('click', () => RichTextEditor.execCmd('superscript'));
   document.getElementById('btn-tool-sub')?.addEventListener('click', () => RichTextEditor.execCmd('subscript'));
+  document.getElementById('btn-tool-align-left')?.addEventListener('click', () => RichTextEditor.execCmd('justifyLeft'));
+  document.getElementById('btn-tool-align-center')?.addEventListener('click', () => RichTextEditor.execCmd('justifyCenter'));
+  document.getElementById('btn-tool-align-right')?.addEventListener('click', () => RichTextEditor.execCmd('justifyRight'));
+  document.getElementById('btn-tool-align-justify')?.addEventListener('click', () => RichTextEditor.execCmd('justifyFull'));
   document.getElementById('btn-tool-ul')?.addEventListener('click', () => RichTextEditor.execCmd('insertUnorderedList'));
   document.getElementById('btn-tool-ol')?.addEventListener('click', () => RichTextEditor.execCmd('insertOrderedList'));
-  document.getElementById('btn-tool-indent')?.addEventListener('click', () => RichTextEditor.execCmd('indent'));
   document.getElementById('btn-tool-outdent')?.addEventListener('click', () => RichTextEditor.execCmd('outdent'));
+  document.getElementById('btn-tool-indent')?.addEventListener('click', () => RichTextEditor.execCmd('indent'));
   document.getElementById('btn-tool-table')?.addEventListener('click', () => RichTextEditor.insertTable(3, 3));
   document.getElementById('btn-tool-latex')?.addEventListener('click', () => RichTextEditor.openLatexModal());
   document.getElementById('btn-tool-link')?.addEventListener('click', () => RichTextEditor.insertLink());
