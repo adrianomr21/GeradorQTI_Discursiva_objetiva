@@ -480,6 +480,15 @@ function render() {
       `;
     }
 
+    const formatCardHtml = (content) => {
+      if (!content) return '';
+      // Garante que todo link abra em nova janela com segurança
+      return content.replace(/<a\s+(?:[^>]*?\s+)?href=["']([^"']*)["']([^>]*)>/gi, (match, href, rest) => {
+        const cleanRest = rest.replace(/\s*target=["'][^"']*["']/gi, '').replace(/\s*rel=["'][^"']*["']/gi, '');
+        return `<a href="${href}" target="_blank" rel="noopener noreferrer"${cleanRest}>`;
+      });
+    };
+
     return `
       <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsAdjustment ? 'question-card-warning' : ''}">
         <div class="q-card-header">
@@ -495,10 +504,10 @@ function render() {
           </div>
         </div>
         <div class="q-card-body">
-          <div class="q-prompt">${q.prompt}</div>
+          <div class="q-prompt">${formatCardHtml(q.prompt)}</div>
           ${optionsHtml}
-          ${q.modelAnswer ? `<div class="q-model-answer"><strong>Padrão de Resposta:</strong><div class="q-formatted-content">${q.modelAnswer}</div></div>` : ''}
-          ${q.feedback ? `<div class="q-feedback"><strong>Feedback:</strong><div class="q-formatted-content">${q.feedback}</div></div>` : ''}
+          ${q.modelAnswer ? `<div class="q-model-answer"><strong>Padrão de Resposta:</strong><div class="q-formatted-content">${formatCardHtml(q.modelAnswer)}</div></div>` : ''}
+          ${q.feedback ? `<div class="q-feedback"><strong>Feedback:</strong><div class="q-formatted-content">${formatCardHtml(q.feedback)}</div></div>` : ''}
         </div>
       </div>
     `;

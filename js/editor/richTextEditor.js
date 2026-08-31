@@ -4,6 +4,7 @@ import { AssetManager } from './assetManager.js';
 import { TableHelper } from './tableHelper.js';
 import { ImageHelper } from './imageHelper.js';
 import { LatexHelper } from './latexHelper.js';
+import { LinkHelper } from './linkHelper.js';
 
 export const RichTextEditor = {
   editorElement: null,
@@ -33,7 +34,8 @@ export const RichTextEditor = {
     this.bindEvents();
     this.bindContextualToolbars();
     LatexHelper.init(this);
-    Logger.info('Editor de Texto Rico inicializado com suporte a mídias, tabelas e LaTeX.');
+    LinkHelper.init(this);
+    Logger.info('Editor de Texto Rico inicializado com suporte a mídias, tabelas, links e LaTeX.');
   },
 
   /**
@@ -125,11 +127,18 @@ export const RichTextEditor = {
       this.handleEditorClick(e);
     });
 
-    // 7. Duplo clique em fórmula matemática (.qti-math) para reedição
+    // 7. Duplo clique em fórmula matemática (.qti-math) ou Link (<a>) para reedição
     this.editorElement.addEventListener('dblclick', (e) => {
       const mathEl = e.target.closest('.qti-math');
       if (mathEl) {
         this.openLatexModal(mathEl);
+        return;
+      }
+      const linkEl = e.target.closest('a');
+      if (linkEl) {
+        e.preventDefault();
+        LinkHelper.openModal(linkEl);
+        return;
       }
     });
 
@@ -147,7 +156,7 @@ export const RichTextEditor = {
   },
 
   /**
-   * Monitora cliques no editor para abrir barra de tabela ou de imagem.
+   * Monitora cliques no editor para abrir barra de tabela, imagem ou link.
    */
   handleEditorClick(e) {
     const target = e.target;
@@ -157,6 +166,7 @@ export const RichTextEditor = {
       ImageHelper.setSelectedImage(target);
       this.showImageToolbar();
       this.hideTableToolbar();
+      LinkHelper.hideFloatingToolbar();
       return;
     } else {
       ImageHelper.setSelectedImage(null);
@@ -169,10 +179,21 @@ export const RichTextEditor = {
       this.activeCell = cell;
       this.showTableToolbar();
       this.hideImageToolbar();
+      LinkHelper.hideFloatingToolbar();
       return;
     } else {
       this.activeCell = null;
       this.hideTableToolbar();
+    }
+
+    // Caso 3: Clicou em um Link
+    const linkEl = target.closest('a');
+    if (linkEl) {
+      e.preventDefault(); // Impede navegação acidental durante a edição
+      LinkHelper.showFloatingToolbar(linkEl);
+      return;
+    } else {
+      LinkHelper.hideFloatingToolbar();
     }
   },
 
@@ -316,6 +337,7 @@ export const RichTextEditor = {
   hideContextToolbars() {
     this.hideTableToolbar();
     this.hideImageToolbar();
+    LinkHelper.hideFloatingToolbar();
     ImageHelper.setSelectedImage(null);
     this.activeCell = null;
   },
@@ -335,15 +357,22 @@ export const RichTextEditor = {
   },
 
   /**
-   * Insere um link no texto selecionado.
+   * Abre o modal para inserir ou editar um link configurável.
    */
   insertLink() {
-    if (this.isSourceMode) return;
-    const url = prompt('Digite a URL do link (ex: https://exemplo.com):');
-    if (url && url.trim()) {
-      this.execCmd('createLink', url.trim());
-      Logger.info(`Link inserido: ${url}`);
+    if (this.isSourceMode) {
+      Logger.warn('Alterne para o modo visual para inserir ou editar links.');
+      return;
     }
+    LinkHelper.openModal();
+  },
+
+  /**
+   * Remove o link ativo ou da seleção.
+   */
+  removeLink() {
+    if (this.isSourceMode) return;
+    LinkHelper.removeLink();
   },
 
   /**

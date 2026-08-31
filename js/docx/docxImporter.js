@@ -96,6 +96,12 @@ export const DocxImporter = {
           const rId = match[1];
           let target = match[2];
 
+          // Se for hiperlink externo da web, armazena a URL diretamente
+          if (/^https?:\/\/|^mailto:|^ftp:/i.test(target)) {
+            mediaMap[rId] = target;
+            continue;
+          }
+
           // Corrige caminhos relativos de media
           if (target.startsWith('media/')) target = `word/${target}`;
           else if (!target.startsWith('word/') && zip.files[`word/${target}`]) target = `word/${target}`;
@@ -180,8 +186,8 @@ export const DocxImporter = {
   parseParagraph(pXml, mediaMap = {}) {
     let pContent = '';
 
-    // Varre runs (<w:r>), equações (<m:oMathPara>, <m:oMath>), quebras (<w:br/>), desenhos (<w:drawing>) e VML (<w:pict>)
-    const runRegex = /<m:oMathPara[\s>][\s\S]*?<\/m:oMathPara>|<m:oMath[\s>][\s\S]*?<\/m:oMath>|<w:r[\s>][\s\S]*?<\/w:r>|<w:drawing[\s>][\s\S]*?<\/w:drawing>|<w:pict[\s>][\s\S]*?<\/w:pict>|<w:br(?:\s[^>]*)?\/>/gi;
+    // Varre runs (<w:r>), equações (<m:oMathPara>, <m:oMath>), links (<w:hyperlink>), quebras (<w:br/>), desenhos (<w:drawing>) e VML (<w:pict>)
+    const runRegex = /<m:oMathPara[\s>][\s\S]*?<\/m:oMathPara>|<m:oMath[\s>][\s\S]*?<\/m:oMath>|<w:hyperlink[\s>][\s\S]*?<\/w:hyperlink>|<w:r[\s>][\s\S]*?<\/w:r>|<w:drawing[\s>][\s\S]*?<\/w:drawing>|<w:pict[\s>][\s\S]*?<\/w:pict>|<w:br(?:\s[^>]*)?\/>/gi;
     let match;
 
     while ((match = runRegex.exec(pXml)) !== null) {
@@ -201,61 +207,85 @@ export const DocxImporter = {
         continue;
       }
 
-      // Verifica imagens embutidas (DrawingML ou VML) dentro ou fora de <w:r>
-      const blipMatch = chunk.match(/r:embed=["']([^"']+)["']|r:id=["']([^"']+)["']|o:relid=["']([^"']+)["']/i);
-      if (blipMatch) {
-        const rId = blipMatch[1] || blipMatch[2] || blipMatch[3];
-        if (rId && mediaMap[rId]) {
-          const extentMatch = chunk.match(/<wp:extent\s+cx=["'](\d+)["']\s+cy=["'](\d+)["']/i);
-          let dimStyle = 'max-width: 100%; height: auto;';
-          if (extentMatch) {
-            const widthPx = Math.round(parseInt(extentMatch[1], 10) / 9525);
-            if (widthPx > 0) dimStyle = `max-width: 100%; width: ${widthPx}px; height: auto;`;
-          }
-          pContent += `<img src="${mediaMap[rId]}" style="${dimStyle}" />`;
+      if (chunk.startsWith('<w:hyperlink')) {
+        const hIdMatch = chunk.match(/r:id=["']([^"']+)["']/i);
+        const url = hIdMatch && mediaMap[hIdMatch[1]] ? mediaMap[hIdMatch[1]] : '';
+        const innerTextHtml = this.parseRunChunk(chunk, mediaMap);
+        if (innerTextHtml) {
+          pContent += url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${innerTextHtml}</a>` : innerTextHtml;
         }
+        continue;
       }
 
-      // Run de texto <w:t>
-      const tMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
-      if (tMatches) {
-        let runText = '';
-        for (const tMatch of tMatches) {
-          const innerText = tMatch.replace(/<[^>]+>/g, '');
-          runText += innerText;
-        }
-
-        if (runText) {
-          // Escapa caracteres especiais básicos
-          let formatted = runText
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-
-          // Aplica estilos de caractere
-          const hasBold = /<w:b(?:\s|\/|>)/i.test(chunk) && !/<w:b\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
-          const hasItalic = /<w:i(?:\s|\/|>)/i.test(chunk) && !/<w:i\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
-          const hasUnderline = /<w:u\s+[^>]*w:val=["'](?!none)/i.test(chunk);
-          const hasStrike = /<w:strike(?:\s|\/|>)/i.test(chunk);
-          const isSup = /<w:vertAlign\s+[^>]*w:val=["']superscript["']/i.test(chunk);
-          const isSub = /<w:vertAlign\s+[^>]*w:val=["']subscript["']/i.test(chunk);
-
-          if (hasBold) formatted = `<strong>${formatted}</strong>`;
-          if (hasItalic) formatted = `<em>${formatted}</em>`;
-          if (hasUnderline) formatted = `<u>${formatted}</u>`;
-          if (hasStrike) formatted = `<s>${formatted}</s>`;
-          if (isSup) formatted = `<sup>${formatted}</sup>`;
-          if (isSub) formatted = `<sub>${formatted}</sub>`;
-
-          pContent += formatted;
-        }
-      }
+      pContent += this.parseRunChunk(chunk, mediaMap);
     }
 
     const trimmed = pContent.trim();
     if (!trimmed) return '';
 
     return `<p>${trimmed}</p>`;
+  },
+
+  /**
+   * Converte um fragmento de Run (<w:r>), desenho ou texto formatado em HTML.
+   * @param {string} chunk
+   * @param {Object} mediaMap
+   * @returns {string}
+   */
+  parseRunChunk(chunk, mediaMap = {}) {
+    let result = '';
+
+    // Verifica imagens embutidas (DrawingML ou VML) dentro ou fora de <w:r>
+    const blipMatch = chunk.match(/r:embed=["']([^"']+)["']|r:id=["']([^"']+)["']|o:relid=["']([^"']+)["']/i);
+    if (blipMatch) {
+      const rId = blipMatch[1] || blipMatch[2] || blipMatch[3];
+      if (rId && mediaMap[rId]) {
+        const extentMatch = chunk.match(/<wp:extent\s+cx=["'](\d+)["']\s+cy=["'](\d+)["']/i);
+        let dimStyle = 'max-width: 100%; height: auto;';
+        if (extentMatch) {
+          const widthPx = Math.round(parseInt(extentMatch[1], 10) / 9525);
+          if (widthPx > 0) dimStyle = `max-width: 100%; width: ${widthPx}px; height: auto;`;
+        }
+        result += `<img src="${mediaMap[rId]}" style="${dimStyle}" />`;
+      }
+    }
+
+    // Run de texto <w:t>
+    const tMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
+    if (tMatches) {
+      let runText = '';
+      for (const tMatch of tMatches) {
+        const innerText = tMatch.replace(/<[^>]+>/g, '');
+        runText += innerText;
+      }
+
+      if (runText) {
+        // Escapa caracteres especiais básicos
+        let formatted = runText
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+
+        // Aplica estilos de caractere
+        const hasBold = /<w:b(?:\s|\/|>)/i.test(chunk) && !/<w:b\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
+        const hasItalic = /<w:i(?:\s|\/|>)/i.test(chunk) && !/<w:i\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
+        const hasUnderline = /<w:u\s+[^>]*w:val=["'](?!none)/i.test(chunk);
+        const hasStrike = /<w:strike(?:\s|\/|>)/i.test(chunk);
+        const isSup = /<w:vertAlign\s+[^>]*w:val=["']superscript["']/i.test(chunk);
+        const isSub = /<w:vertAlign\s+[^>]*w:val=["']subscript["']/i.test(chunk);
+
+        if (hasBold) formatted = `<strong>${formatted}</strong>`;
+        if (hasItalic) formatted = `<em>${formatted}</em>`;
+        if (hasUnderline) formatted = `<u>${formatted}</u>`;
+        if (hasStrike) formatted = `<s>${formatted}</s>`;
+        if (isSup) formatted = `<sup>${formatted}</sup>`;
+        if (isSub) formatted = `<sub>${formatted}</sub>`;
+
+        result += formatted;
+      }
+    }
+
+    return result;
   },
 
   /**

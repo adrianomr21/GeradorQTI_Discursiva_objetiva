@@ -89,7 +89,7 @@
               <div class="toolbar-group">
                 <button type="button" class="tool-btn" id="btn-tool-table" title="Inserir Tabela">📊 Tabela</button>
                 <button type="button" class="tool-btn" id="btn-tool-latex" title="Inserir Fórmula Matemática (LaTeX)">🧮 LaTeX</button>
-                <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir Link">🔗 Link</button>
+                <button type="button" class="tool-btn" id="btn-tool-link" title="Inserir ou Editar Link">🔗 Link</button>
                 <button type="button" class="tool-btn" id="btn-tool-image" title="Upload / Inserir Imagem">🖼️ Imagem</button>
               </div>
 
@@ -125,6 +125,15 @@
               <button type="button" class="context-btn" id="btn-img-align-right" title="Alinhar à Direita">➡️ Direita</button>
               <div class="context-separator"></div>
               <button type="button" class="context-btn context-btn-danger" id="btn-img-delete" title="Remover Imagem">🗑️ Remover</button>
+            </div>
+
+            <!-- Barra Contextual de Link (aparece ao clicar em um link) -->
+            <div id="link-floating-toolbar" class="context-toolbar link-toolbar" style="display: none;">
+              <span class="context-title">🔗 Link:</span>
+              <span id="link-float-url" class="link-float-url-text" style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; color: #2563eb; background: #eff6ff; padding: 2px 6px; border-radius: 4px; border: 1px solid #bfdbfe;"></span>
+              <button type="button" class="context-btn" id="btn-link-float-open" title="Abrir link em nova aba">↗️ Abrir</button>
+              <button type="button" class="context-btn" id="btn-link-float-edit" title="Editar Link">✏️ Editar</button>
+              <button type="button" class="context-btn context-btn-danger" id="btn-link-float-remove" title="Remover Link">❌ Desvincular</button>
             </div>
 
             <!-- Input oculto para upload de imagem -->
@@ -261,6 +270,47 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline" id="btn-latex-cancel">Cancelar</button>
         <button type="button" class="btn btn-primary" id="btn-latex-insert">Inserir no Editor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Inserção / Edição de Hiperlinks -->
+  <div id="modal-link" class="modal-overlay" style="display: none;">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3 id="link-modal-title">🔗 Inserir Hiperlink</h3>
+        <button type="button" class="modal-close-btn" id="btn-link-close" title="Fechar">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <div class="form-group">
+          <label for="link-text-input" style="font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; display: block;">
+            Texto a ser exibido:
+          </label>
+          <input type="text" id="link-text-input" class="link-input" placeholder="Ex: Clique aqui para acessar o artigo" style="width: 100%; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.92rem;">
+        </div>
+
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="link-url-input" style="font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; display: block;">
+            URL de destino:
+          </label>
+          <input type="url" id="link-url-input" class="link-input" placeholder="https://exemplo.com" style="width: 100%; padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.92rem;">
+        </div>
+
+        <div style="margin-top: 12px; margin-bottom: 6px; background: #f8fafc; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border);">
+          <label style="display: inline-flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer; user-select: none; font-weight: 500;">
+            <input type="checkbox" id="link-target-blank" checked style="width: 16px; height: 16px; accent-color: var(--primary); cursor: pointer;">
+            <span>Abrir em uma nova janela / aba (<code>target="_blank"</code>)</span>
+          </label>
+        </div>
+
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
+        <button type="button" class="btn btn-danger-outline" id="btn-link-remove" style="display: none; padding: 6px 12px; font-size: 0.85rem;">🗑️ Remover Link</button>
+        <div style="display: flex; gap: 8px; margin-left: auto;">
+          <button type="button" class="btn btn-outline" id="btn-link-cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="btn-link-insert">Inserir Link</button>
+        </div>
       </div>
     </div>
   </div>

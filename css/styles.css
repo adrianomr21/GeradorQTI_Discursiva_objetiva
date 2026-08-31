@@ -980,3 +980,30 @@ pre#json-preview {
   font-style: italic;
   font-size: 0.88rem;
 }
+
+/* Estilos de Hiperlinks */
+.rich-editor-content a,
+.q-prompt a,
+.q-model-answer a,
+.q-feedback a,
+.q-options-list a {
+  color: var(--primary);
+  text-decoration: underline;
+  cursor: pointer;
+  word-break: break-word;
+  transition: color 0.15s ease;
+}
+
+.rich-editor-content a:hover,
+.q-prompt a:hover,
+.q-model-answer a:hover,
+.q-feedback a:hover,
+.q-options-list a:hover {
+  color: var(--primary-hover);
+}
+
+.link-input:focus {
+  outline: none;
+  border-color: var(--primary) !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
