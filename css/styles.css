@@ -584,6 +584,68 @@ pre#json-preview {
   font-family: monospace;
 }
 
+/* Questions Filter Bar */
+.questions-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+}
+
+.filter-pill {
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filter-pill:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+.filter-pill.active {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.filter-pill-problems {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #92400e;
+}
+
+.filter-pill-problems:hover {
+  background: #fef3c7;
+  border-color: #f59e0b;
+  color: #78350f;
+}
+
+.filter-pill-problems.active {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #b45309;
+}
+
+.filter-pill-problems.has-issues {
+  font-weight: 700;
+  border-color: #f59e0b;
+}
+
 /* Questions List */
 .questions-list {
   /*max-height: 520px;*/

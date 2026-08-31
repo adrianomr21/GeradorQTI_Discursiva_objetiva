@@ -9,8 +9,25 @@ import { RichTextEditor } from './editor/richTextEditor.js';
 export const state = {
   title: 'Atividade Avaliativa',
   questions: [],
-  editingIndex: null // Índice da questão sendo editada ou null
+  editingIndex: null, // Índice da questão sendo editada ou null
+  currentFilter: 'all' // 'all' | 'problems' | 'objective' | 'discursive'
 };
+
+/**
+ * Verifica se uma questão possui algum problema/pendência de validação
+ * @param {Object} q - Objeto da questão
+ * @returns {boolean}
+ */
+export function hasQuestionIssues(q) {
+  if (!q) return false;
+  if (q.type === 'multiple_choice') {
+    const hasNoCorrect = q.needsCorrectAnswerAdjustment || !q.options || !q.options.some(opt => opt.isCorrect);
+    const hasMultipleCorrect = !!q.hadMultipleCorrectAnswers;
+    const hasDuplicateOptions = !!q.hasDuplicateOptions;
+    return hasNoCorrect || hasMultipleCorrect || hasDuplicateOptions;
+  }
+  return false;
+}
 
 // Exemplos pré-configurados para teste rápido
 const SAMPLES = {
@@ -52,6 +69,10 @@ function initElements() {
     jsonPreview: document.getElementById('json-preview'),
     questionsList: document.getElementById('questions-list'),
     questionCount: document.getElementById('question-count'),
+    filterCountAll: document.getElementById('filter-count-all'),
+    filterCountProblems: document.getElementById('filter-count-problems'),
+    filterCountObj: document.getElementById('filter-count-obj'),
+    filterCountDisc: document.getElementById('filter-count-disc'),
     btnClearLogs: document.getElementById('btn-clear-logs'),
     editBanner: document.getElementById('editor-edit-banner'),
     editQuestionNum: document.getElementById('edit-question-num'),
@@ -196,7 +217,16 @@ function init() {
     Logger.clear();
   });
 
-  // 9. Alteração do título da atividade
+  // 9. Barra de Filtros de Questões
+  document.querySelectorAll('.questions-filter-bar button[data-filter]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const filter = btn.getAttribute('data-filter');
+      state.currentFilter = filter || 'all';
+      render();
+    });
+  });
+
+  // 10. Alteração do título da atividade
   elements.activityTitle.addEventListener('input', (e) => {
     state.title = e.target.value.trim() || 'Atividade Avaliativa';
   });
@@ -450,7 +480,45 @@ function render() {
     elements.btnClearInput.className = 'btn btn-outline';
   }
 
-  // 5. Atualiza Lista de Questões
+  // 5. Atualiza Contadores dos Filtros
+  const countAll = state.questions.length;
+  const countProblems = state.questions.filter(hasQuestionIssues).length;
+  const countObj = state.questions.filter(q => q.type === 'multiple_choice').length;
+  const countDisc = state.questions.filter(q => q.type === 'discursive').length;
+
+  if (elements.filterCountAll) elements.filterCountAll.textContent = countAll;
+  if (elements.filterCountProblems) elements.filterCountProblems.textContent = countProblems;
+  if (elements.filterCountObj) elements.filterCountObj.textContent = countObj;
+  if (elements.filterCountDisc) elements.filterCountDisc.textContent = countDisc;
+
+  document.querySelectorAll('.questions-filter-bar button[data-filter]').forEach(btn => {
+    const f = btn.getAttribute('data-filter');
+    btn.classList.toggle('active', f === state.currentFilter);
+    if (f === 'problems') {
+      btn.classList.toggle('has-issues', countProblems > 0);
+    }
+  });
+
+  // 6. Determina as questões a serem exibidas conforme o filtro ativo
+  let filteredQuestions = state.questions;
+  if (state.currentFilter === 'problems') {
+    filteredQuestions = state.questions.filter(hasQuestionIssues);
+  } else if (state.currentFilter === 'objective') {
+    filteredQuestions = state.questions.filter(q => q.type === 'multiple_choice');
+  } else if (state.currentFilter === 'discursive') {
+    filteredQuestions = state.questions.filter(q => q.type === 'discursive');
+  }
+
+  // 7. Atualiza o contador de questões no cabeçalho
+  if (elements.questionCount) {
+    if (state.currentFilter !== 'all') {
+      elements.questionCount.textContent = `${filteredQuestions.length} de ${countAll}`;
+    } else {
+      elements.questionCount.textContent = countAll;
+    }
+  }
+
+  // 8. Atualiza Lista de Questões
   if (state.questions.length === 0) {
     elements.questionsList.innerHTML = `
       <div class="empty-state">
@@ -461,7 +529,26 @@ function render() {
     return;
   }
 
-  elements.questionsList.innerHTML = state.questions.map((q, idx) => {
+  if (filteredQuestions.length === 0) {
+    if (state.currentFilter === 'problems') {
+      elements.questionsList.innerHTML = `
+        <div class="empty-state">
+          <p style="font-size: 1.05rem; color: #059669; font-weight: 600;">🎉 Nenhuma questão com problemas!</p>
+          <p class="subtitle">Todas as ${state.questions.length} questões cadastradas estão válidas e com gabarito definido.</p>
+        </div>
+      `;
+    } else {
+      elements.questionsList.innerHTML = `
+        <div class="empty-state">
+          <p>Nenhuma questão encontrada para este filtro.</p>
+        </div>
+      `;
+    }
+    return;
+  }
+
+  elements.questionsList.innerHTML = filteredQuestions.map((q) => {
+    const idx = state.questions.indexOf(q);
     const isObj = q.type === 'multiple_choice';
     const badgeClass = isObj ? 'badge-obj' : 'badge-disc';
     const typeLabel = isObj ? 'Objetiva' : 'Discursiva';

@@ -226,6 +226,23 @@
           <h2>2. Questões Cadastradas (<span id="question-count">0</span>)</h2>
           <button id="btn-clear-all" class="btn btn-danger-outline" style="padding: 4px 10px; font-size: 0.8rem;">Limpar Tudo</button>
         </div>
+
+        <!-- Barra de Filtros de Questões -->
+        <div class="questions-filter-bar" id="questions-filter-bar">
+          <button type="button" class="filter-pill active" data-filter="all" id="filter-btn-all" title="Exibir todas as questões">
+            Todas (<span id="filter-count-all">0</span>)
+          </button>
+          <button type="button" class="filter-pill filter-pill-problems" data-filter="problems" id="filter-btn-problems" title="Filtrar questões com pendências ou problemas">
+            ⚠️ Com Problemas (<span id="filter-count-problems">0</span>)
+          </button>
+          <button type="button" class="filter-pill" data-filter="objective" id="filter-btn-obj" title="Filtrar apenas questões de múltipla escolha">
+            Objetivas (<span id="filter-count-obj">0</span>)
+          </button>
+          <button type="button" class="filter-pill" data-filter="discursive" id="filter-btn-disc" title="Filtrar apenas questões discursivas">
+            Discursivas (<span id="filter-count-disc">0</span>)
+          </button>
+        </div>
+
         <div class="panel-body">
           <!-- Lista Dinâmica de Cards -->
           <div id="questions-list" class="questions-list">
