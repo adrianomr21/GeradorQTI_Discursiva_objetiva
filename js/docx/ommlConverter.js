@@ -644,7 +644,7 @@ export const OmmlConverter = {
       }
 
       // 3. Integrais, Somatórios e Produtórios: \int, \sum, \prod, \iint, \iiint, \oint
-      const naryMatch = latex.substring(i).match(/^\\(int|iint|iiint|oint|sum|prod)\b/);
+      const naryMatch = latex.substring(i).match(/^\\(int|iint|iiint|oint|sum|prod)(?![a-zA-Z])/);
       if (naryMatch) {
         flushText(textBuffer); textBuffer = '';
         const opName = naryMatch[1];
@@ -734,7 +734,7 @@ export const OmmlConverter = {
       }
 
       // 4.1 Texto e Operadores em modo texto: \text{...}, \mathrm{...}, \operatorname{...}
-      const textMatch = latex.substring(i).match(/^\\(?:text|mathrm|operatorname)\b/);
+      const textMatch = latex.substring(i).match(/^\\(?:text|mathrm|operatorname)(?![a-zA-Z])/);
       if (textMatch) {
         flushText(textBuffer); textBuffer = '';
         let pos = i + textMatch[0].length;
@@ -746,7 +746,7 @@ export const OmmlConverter = {
       }
 
       // 5. Funções trigonométricas, logarítmicas e algébricas
-      const funcMatch = latex.substring(i).match(/^\\(sin|cos|tan|sec|csc|cot|sinh|cosh|tanh|arcsin|arccos|arctan|ln|log|exp|det|dim|max|min|deg)\b/);
+      const funcMatch = latex.substring(i).match(/^\\(sin|cos|tan|sec|csc|cot|sinh|cosh|tanh|arcsin|arccos|arctan|ln|log|exp|det|dim|max|min|deg)(?![a-zA-Z])/);
       if (funcMatch) {
         flushText(textBuffer); textBuffer = '';
         const fname = funcMatch[1];
@@ -778,7 +778,7 @@ export const OmmlConverter = {
       }
 
       // 7. Vetores e Acentos: \vec, \bar, \hat, \dot, \ddot, \overline, \tilde
-      const accMatch = latex.substring(i).match(/^\\(vec|bar|hat|dot|ddot|overline|tilde)\b/);
+      const accMatch = latex.substring(i).match(/^\\(vec|bar|hat|dot|ddot|overline|tilde)(?![a-zA-Z])/);
       if (accMatch) {
         flushText(textBuffer); textBuffer = '';
         const accType = accMatch[1];
