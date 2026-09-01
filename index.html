@@ -264,10 +264,13 @@
             <!-- Renderizado dinamicamente pelo app.js -->
           </div>
 
-          <!-- Botão de Exportação -->
-          <div style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border);">
-            <button id="btn-export-zip" class="btn btn-success" style="width: 100%; padding: 14px; font-size: 1rem;" disabled>
+          <!-- Botões de Exportação -->
+          <div class="export-actions-container" style="margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px;">
+            <button id="btn-export-zip" class="btn btn-success" style="width: 100%; padding: 13px; font-size: 0.95rem;" disabled title="Exportar todas as questões no formato padrão IMS QTI 2.1 (.zip)">
               📦 Gerar Pacote QTI (.zip)
+            </button>
+            <button id="btn-export-docx" class="btn btn-secondary" style="width: 100%; padding: 13px; font-size: 0.95rem; background-color: #2563eb;" disabled title="Exportar todas as questões completas para um documento Microsoft Word (.docx)">
+              📄 Exportar para Word (.docx)
             </button>
           </div>
         </div>

@@ -250,6 +250,25 @@ export const DocxImporter = {
       }
     }
 
+    // Verifica Formas e Vetores de Desenho (DrawingML / VML) - Setas, Linhas, Caixas
+    if (!blipMatch && (chunk.includes('<w:drawing') || chunk.includes('<w:pict') || chunk.includes('<mc:AlternateContent') || chunk.includes('<wps:wsp>'))) {
+      if (/prst=["'](?:rightArrow|leftRightArrow|leftArrow|upArrow|downArrow|stripedRightArrow|notchedRightArrow|curvedRightArrow)["']/i.test(chunk) ||
+          /<a:headEnd[^>]*type=["'](?:arrow|triangle|stealth|oval|diamond)["']/i.test(chunk) ||
+          /<a:tailEnd[^>]*type=["'](?:arrow|triangle|stealth|oval|diamond)["']/i.test(chunk) ||
+          /<v:stroke[^>]*endarrow=["'](?:classic|block|diamond|open|oval|narrow)["']/i.test(chunk) ||
+          /<v:shape[^>]*type=["'][^"']*(?:arrow|line)[^"']*["']/i.test(chunk) ||
+          /<v:line[^>]*>/i.test(chunk)) {
+        result += ' ⟶ ';
+      }
+
+      const txbxMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
+      if (txbxMatches) {
+        for (const tm of txbxMatches) {
+          result += tm.replace(/<[^>]+>/g, '');
+        }
+      }
+    }
+
     // Run de texto <w:t>
     const tMatches = chunk.match(/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/gi);
     if (tMatches) {

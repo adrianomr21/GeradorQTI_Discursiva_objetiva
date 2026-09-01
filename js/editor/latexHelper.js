@@ -119,6 +119,26 @@ export const LatexHelper = {
   },
 
   /**
+   * Normaliza funções e espaçamentos no código LaTeX antes da renderização pelo KaTeX.
+   * @param {string} latex
+   * @returns {string}
+   */
+  normalizeMathFunctions(latex) {
+    if (!latex) return '';
+    const funcRegex = /(?<![\\a-zA-Z])(ln|log|exp|sin|cos|tan|cot|sec|csc|arcsin|arccos|arctan|sen|tg|cotg|cossec|arcsen|arctg|lim|det|max|min)(?![a-zA-Z])/gi;
+    return latex.replace(funcRegex, (match, fn) => {
+      const lower = fn.toLowerCase();
+      if (lower === 'sen') return '\\sin';
+      if (lower === 'tg') return '\\tan';
+      if (lower === 'cotg') return '\\cot';
+      if (lower === 'cossec') return '\\csc';
+      if (lower === 'arcsen') return '\\arcsin';
+      if (lower === 'arctg') return '\\arctan';
+      return '\\' + lower;
+    });
+  },
+
+  /**
    * Renderiza uma expressão LaTeX para HTML/MathML usando KaTeX.
    * @param {string} latex - Código LaTeX
    * @param {boolean} isDisplay - Modo em bloco (centralizado) ou inline
@@ -127,20 +147,26 @@ export const LatexHelper = {
   renderFormula(latex, isDisplay = false) {
     if (!latex || !latex.trim()) return '';
 
+    let clean = this.normalizeMathFunctions(latex.trim())
+      .replace(/-{2,}>/g, ' \\longrightarrow ')
+      .replace(/<-{2,}/g, ' \\longleftarrow ')
+      .replace(/={2,}>/g, ' \\Longrightarrow ')
+      .replace(/<={2,}/g, ' \\Longleftarrow ');
+
     const katex = this.getKatex();
     if (!katex) {
-      return `<span class="math-fallback">${latex}</span>`;
+      return `<span class="math-fallback">${clean}</span>`;
     }
 
     try {
-      return katex.renderToString(latex.trim(), {
+      return katex.renderToString(clean, {
         displayMode: isDisplay,
         output: 'htmlAndMathml',
         throwOnError: false
       });
     } catch (err) {
       console.warn('Erro ao renderizar fórmula com KaTeX:', err);
-      return `<span class="katex-error" title="${err.message}">${latex}</span>`;
+      return `<span class="katex-error" title="${err.message}">${clean}</span>`;
     }
   },
 

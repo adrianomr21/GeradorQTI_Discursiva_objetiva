@@ -3,6 +3,7 @@ import { QuestionParser } from './parser.js';
 import { ZipBuilder } from './qti/zipBuilder.js';
 import { QtiImporter } from './qti/qtiImporter.js';
 import { DocxImporter } from './docx/docxImporter.js';
+import { DocxExporter } from './docx/docxExporter.js';
 import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
@@ -59,6 +60,7 @@ function initElements() {
     btnAddQuestion: document.getElementById('btn-add-question'),
     btnClearInput: document.getElementById('btn-clear-input'),
     btnExportZip: document.getElementById('btn-export-zip'),
+    btnExportDocx: document.getElementById('btn-export-docx'),
     btnImportDocx: document.getElementById('btn-import-docx'),
     inputFileDocx: document.getElementById('input-file-docx'),
     btnImportQti: document.getElementById('btn-import-qti'),
@@ -188,7 +190,10 @@ function init() {
   // 7. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
 
-  // 8. Botão Limpar Tudo
+  // 8. Botão Exportar para Word (.docx)
+  elements.btnExportDocx?.addEventListener('click', handleExportDocx);
+
+  // 9. Botão Limpar Tudo
   elements.btnClearAll.addEventListener('click', handleClearAll);
 
   // 7. Botões de Exemplos Rápidos
@@ -435,6 +440,30 @@ async function handleExportZip() {
 }
 
 /**
+ * Exporta todas as questões cadastradas para um documento Word (.docx)
+ */
+async function handleExportDocx() {
+  if (state.questions.length === 0) {
+    Logger.warn('Adicione ao menos uma questão antes de exportar para o Word (.docx).');
+    return;
+  }
+
+  if (elements.btnExportDocx) {
+    elements.btnExportDocx.disabled = true;
+    elements.btnExportDocx.textContent = '⏳ Gerando Word...';
+  }
+
+  try {
+    await DocxExporter.generateDocx(state.questions, state.title);
+  } finally {
+    if (elements.btnExportDocx) {
+      elements.btnExportDocx.disabled = false;
+      elements.btnExportDocx.textContent = '📄 Exportar para Word (.docx)';
+    }
+  }
+}
+
+/**
  * Limpa todas as questões cadastradas
  */
 function handleClearAll() {
@@ -456,8 +485,9 @@ function render() {
   // 1. Atualiza Contador
   elements.questionCount.textContent = state.questions.length;
 
-  // 2. Atualiza Botão Exportar
-  elements.btnExportZip.disabled = state.questions.length === 0;
+  // 2. Atualiza Botões de Exportar
+  if (elements.btnExportZip) elements.btnExportZip.disabled = state.questions.length === 0;
+  if (elements.btnExportDocx) elements.btnExportDocx.disabled = state.questions.length === 0;
 
   // 3. Atualiza JSON Preview
   elements.jsonPreview.textContent = JSON.stringify(state.questions, null, 2);
