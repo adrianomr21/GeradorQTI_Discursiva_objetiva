@@ -78,10 +78,10 @@ body {
   /*flex-shrink: 0;*/
 }
 
-.brand-logo:hover {
+/*.brand-logo:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
   border-color: #cbd5e1;
-}
+}*/
 
 .brand-icon-box {
   width: 36px;
