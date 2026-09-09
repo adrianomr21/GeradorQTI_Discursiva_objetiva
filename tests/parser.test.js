@@ -127,6 +127,33 @@ c) Opção Gama`;
       assert.ok(parsed);
       assert.strictEqual(parsed.hasDuplicateOptions, false, 'Não deve sinalizar duplicidade quando alternativas forem distintas');
     });
+
+    it('deve sinalizar hasFewOptions true quando questão objetiva possuir menos de 5 alternativas', () => {
+      const raw = `Questão 1
+Pergunta com 4 alternativas
+*a) Opção A
+b) Opção B
+c) Opção C
+d) Opção D`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.hasFewOptions, true, 'Deve sinalizar menos de 5 alternativas');
+    });
+
+    it('deve sinalizar hasFewOptions false quando questão objetiva possuir 5 ou mais alternativas', () => {
+      const raw = `Questão 1
+Pergunta com 5 alternativas
+*a) Opção A
+b) Opção B
+c) Opção C
+d) Opção D
+e) Opção E`;
+
+      const parsed = QuestionParser.parse(raw, 1);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.hasFewOptions, false, 'Não deve sinalizar menos de 5 alternativas quando tiver 5');
+    });
   });
 
   describe('Questões Discursivas', () => {

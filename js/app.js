@@ -8,24 +8,90 @@ import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
 export const state = {
-  title: 'Atividade Avaliativa',
+  title: '',
   questions: [],
   editingIndex: null, // Índice da questão sendo editada ou null
   currentFilter: 'all' // 'all' | 'problems' | 'objective' | 'discursive'
 };
 
 /**
- * Verifica se uma questão possui algum problema/pendência de validação
- * @param {Object} q - Objeto da questão
+ * Verifica se duas questões possuem o mesmo enunciado/conteúdo
+ * @param {Object} q1
+ * @param {Object} q2
  * @returns {boolean}
  */
-export function hasQuestionIssues(q) {
+export function isSameQuestion(q1, q2) {
+  if (!q1 || !q2) return false;
+  if (q1 === q2) return false;
+
+  const normPrompt1 = QuestionParser.stripHtml(q1.prompt || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+  
+  const normPrompt2 = QuestionParser.stripHtml(q2.prompt || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  if (!normPrompt1 || !normPrompt2) return false;
+  if (normPrompt1 !== normPrompt2) return false;
+
+  const getOptSignature = (item) => {
+    if (item.type === 'multiple_choice' && item.options && item.options.length > 0) {
+      return item.options
+        .map(opt => QuestionParser.stripHtml(opt.text || '').replace(/\s+/g, ' ').trim().toLowerCase())
+        .sort()
+        .join('|');
+    }
+    if (item.type === 'discursive' && item.modelAnswer) {
+      return QuestionParser.stripHtml(item.modelAnswer || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    }
+    return '';
+  };
+
+  const sig1 = getOptSignature(q1);
+  const sig2 = getOptSignature(q2);
+
+  if (sig1 && sig2) {
+    return sig1 === sig2 || normPrompt1.length > 25;
+  }
+
+  return true;
+}
+
+/**
+ * Verifica se a questão é uma duplicata de outra questão na lista
+ * @param {Object} q
+ * @param {Array} allQuestions
+ * @returns {boolean}
+ */
+export function isDuplicateQuestion(q, allQuestions = state.questions) {
+  const list = Array.isArray(allQuestions) ? allQuestions : (state && state.questions ? state.questions : []);
+  if (!q || !Array.isArray(list) || list.length <= 1) return false;
+  return list.some(other => isSameQuestion(q, other));
+}
+
+/**
+ * Verifica se uma questão possui algum problema/pendência de validação
+ * @param {Object} q - Objeto da questão
+ * @param {Array} allQuestions - Lista de todas as questões cadastradas
+ * @returns {boolean}
+ */
+export function hasQuestionIssues(q, allQuestions = state.questions) {
   if (!q) return false;
+
+  const list = Array.isArray(allQuestions) ? allQuestions : (state && state.questions ? state.questions : []);
+  const isDuplicate = isDuplicateQuestion(q, list);
+
   if (q.type === 'multiple_choice') {
     const hasNoCorrect = q.needsCorrectAnswerAdjustment || !q.options || !q.options.some(opt => opt.isCorrect);
     const hasMultipleCorrect = !!q.hadMultipleCorrectAnswers;
     const hasDuplicateOptions = !!q.hasDuplicateOptions;
-    return hasNoCorrect || hasMultipleCorrect || hasDuplicateOptions;
+    const hasFewOptions = !q.options || q.options.length < 5;
+    return hasNoCorrect || hasMultipleCorrect || hasDuplicateOptions || hasFewOptions || isDuplicate;
+  } else if (q.type === 'discursive') {
+    return isDuplicate;
   }
   return false;
 }
@@ -233,7 +299,7 @@ function init() {
 
   // 10. Alteração do título da atividade
   elements.activityTitle.addEventListener('input', (e) => {
-    state.title = e.target.value.trim() || 'Atividade Avaliativa';
+    state.title = e.target.value.trim();
   });
 
   Logger.info('Sistema Gerador QTI 2.1 inicializado com sucesso.');
@@ -264,6 +330,9 @@ function handleSaveOrAddQuestion() {
       RichTextEditor.clear();
       render();
       Logger.success(`Questão #${parsed.id} atualizada com sucesso na mesma posição!`);
+      if (isDuplicateQuestion(parsed, state.questions)) {
+        Logger.warn(`⚠️ Atenção: A questão #${parsed.id} possui conteúdo repetido com outra questão do banco.`);
+      }
     }
   } else {
     // MODO ADIÇÃO: Cria uma nova questão no fim da lista
@@ -274,6 +343,9 @@ function handleSaveOrAddQuestion() {
       RichTextEditor.clear();
       render();
       Logger.success(`Questão #${parsed.id} adicionada à lista.`);
+      if (isDuplicateQuestion(parsed, state.questions)) {
+        Logger.warn(`⚠️ Atenção: A questão #${parsed.id} possui conteúdo repetido com outra questão do banco.`);
+      }
     }
   }
 }
@@ -364,14 +436,13 @@ async function handleImportDocxFile(e) {
       // Adiciona as questões importadas à lista existente (sem sobrescrever as atuais)
       state.questions.push(...result.questions);
 
-      // Se o título estiver padrão e o documento trouxer um título descritivo, atualiza
-      if (result.title && state.title === 'Atividade Avaliativa') {
-        state.title = result.title;
-        if (elements.activityTitle) elements.activityTitle.value = result.title;
-      }
-
       render();
       Logger.success(`🎉 ${result.questions.length} questões importadas com sucesso do Word! Total no banco: ${state.questions.length} questões.`);
+
+      const duplicatesCount = state.questions.filter(q => isDuplicateQuestion(q, state.questions)).length;
+      if (duplicatesCount > 0) {
+        Logger.warn(`⚠️ Atenção: Foram identificadas ${duplicatesCount} questões repetidas no banco após a importação.`);
+      }
     } else {
       Logger.warn('Nenhuma questão válida foi identificada no arquivo Word.');
     }
@@ -400,14 +471,13 @@ async function handleImportQtiFile(e) {
       // Adiciona as questões importadas à lista existente (sem sobrescrever as atuais)
       state.questions.push(...result.questions);
 
-      // Se o título estiver padrão e o pacote trouxer um título descritivo, atualiza
-      if (result.title && state.title === 'Atividade Avaliativa') {
-        state.title = result.title;
-        if (elements.activityTitle) elements.activityTitle.value = result.title;
-      }
-
       render();
       Logger.success(`🎉 ${result.questions.length} questões importadas e adicionadas com sucesso! Total no banco: ${state.questions.length} questões.`);
+
+      const duplicatesCount = state.questions.filter(q => isDuplicateQuestion(q, state.questions)).length;
+      if (duplicatesCount > 0) {
+        Logger.warn(`⚠️ Atenção: Foram identificadas ${duplicatesCount} questões repetidas no banco após a importação.`);
+      }
     } else {
       Logger.warn('Nenhuma questão válida foi encontrada no pacote importado.');
     }
@@ -420,6 +490,96 @@ async function handleImportQtiFile(e) {
 }
 
 /**
+ * Garante que a atividade possua um nome antes de exportar.
+ * Se não houver nome, abre o modal para o usuário informar.
+ * @returns {Promise<string|null>} Retorna o título confirmado ou null se cancelado
+ */
+export function ensureActivityTitle() {
+  const currentTitle = (state.title || (elements.activityTitle ? elements.activityTitle.value : '')).trim();
+  if (currentTitle) {
+    state.title = currentTitle;
+    return Promise.resolve(currentTitle);
+  }
+
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined') {
+      return resolve('nome_disciplina_ava_1');
+    }
+
+    const modal = document.getElementById('modal-activity-title');
+    const input = document.getElementById('modal-activity-title-input');
+    const btnConfirm = document.getElementById('btn-activity-title-confirm');
+    const btnCancel = document.getElementById('btn-activity-title-cancel');
+    const btnClose = document.getElementById('btn-activity-title-close');
+
+    if (!modal || !input) {
+      const promptTitle = window.prompt('Informe o nome da atividade:', 'nome_disciplina_ava_1');
+      if (promptTitle && promptTitle.trim()) {
+        const clean = promptTitle.trim();
+        state.title = clean;
+        if (elements.activityTitle) elements.activityTitle.value = clean;
+        resolve(clean);
+      } else {
+        resolve(null);
+      }
+      return;
+    }
+
+    input.value = '';
+    input.placeholder = 'nome_disciplina_ava_1';
+    modal.style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
+
+    const cleanup = () => {
+      modal.style.display = 'none';
+      btnConfirm?.removeEventListener('click', onConfirm);
+      btnCancel?.removeEventListener('click', onCancel);
+      btnClose?.removeEventListener('click', onCancel);
+      input?.removeEventListener('keydown', onKeyDown);
+      modal?.removeEventListener('click', onOverlayClick);
+    };
+
+    const onConfirm = () => {
+      let val = input.value.trim();
+      if (!val) {
+        val = 'nome_disciplina_ava_1';
+      }
+      state.title = val;
+      if (elements.activityTitle) elements.activityTitle.value = val;
+      cleanup();
+      resolve(val);
+    };
+
+    const onCancel = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    const onKeyDown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        onConfirm();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+
+    const onOverlayClick = (e) => {
+      if (e.target === modal) {
+        onCancel();
+      }
+    };
+
+    btnConfirm?.addEventListener('click', onConfirm);
+    btnCancel?.addEventListener('click', onCancel);
+    btnClose?.addEventListener('click', onCancel);
+    input?.addEventListener('keydown', onKeyDown);
+    modal?.addEventListener('click', onOverlayClick);
+  });
+}
+
+/**
  * Exporta o pacote QTI .zip
  */
 async function handleExportZip() {
@@ -428,11 +588,17 @@ async function handleExportZip() {
     return;
   }
 
+  const title = await ensureActivityTitle();
+  if (!title) {
+    Logger.info('Exportação do pacote QTI cancelada (nome não informado).');
+    return;
+  }
+
   elements.btnExportZip.disabled = true;
   elements.btnExportZip.textContent = '⏳ Gerando Pacote...';
 
   try {
-    await ZipBuilder.generatePackage(state.questions, state.title);
+    await ZipBuilder.generatePackage(state.questions, title);
   } finally {
     elements.btnExportZip.disabled = false;
     elements.btnExportZip.textContent = '📦 Gerar Pacote QTI (.zip)';
@@ -448,13 +614,19 @@ async function handleExportDocx() {
     return;
   }
 
+  const title = await ensureActivityTitle();
+  if (!title) {
+    Logger.info('Exportação para Word (.docx) cancelada (nome não informado).');
+    return;
+  }
+
   if (elements.btnExportDocx) {
     elements.btnExportDocx.disabled = true;
     elements.btnExportDocx.textContent = '⏳ Gerando Word...';
   }
 
   try {
-    await DocxExporter.generateDocx(state.questions, state.title);
+    await DocxExporter.generateDocx(state.questions, title);
   } finally {
     if (elements.btnExportDocx) {
       elements.btnExportDocx.disabled = false;
@@ -512,7 +684,7 @@ function render() {
 
   // 5. Atualiza Contadores dos Filtros
   const countAll = state.questions.length;
-  const countProblems = state.questions.filter(hasQuestionIssues).length;
+  const countProblems = state.questions.filter(q => hasQuestionIssues(q, state.questions)).length;
   const countObj = state.questions.filter(q => q.type === 'multiple_choice').length;
   const countDisc = state.questions.filter(q => q.type === 'discursive').length;
 
@@ -532,7 +704,7 @@ function render() {
   // 6. Determina as questões a serem exibidas conforme o filtro ativo
   let filteredQuestions = state.questions;
   if (state.currentFilter === 'problems') {
-    filteredQuestions = state.questions.filter(hasQuestionIssues);
+    filteredQuestions = state.questions.filter(q => hasQuestionIssues(q, state.questions));
   } else if (state.currentFilter === 'objective') {
     filteredQuestions = state.questions.filter(q => q.type === 'multiple_choice');
   } else if (state.currentFilter === 'discursive') {
@@ -583,32 +755,40 @@ function render() {
     const badgeClass = isObj ? 'badge-obj' : 'badge-disc';
     const typeLabel = isObj ? 'Objetiva' : 'Discursiva';
     const isEditing = state.editingIndex === idx;
-    const hasNoCorrect = isObj && (q.needsCorrectAnswerAdjustment || !q.options.some(opt => opt.isCorrect));
+    const hasNoCorrect = isObj && (q.needsCorrectAnswerAdjustment || !q.options || !q.options.some(opt => opt.isCorrect));
     const hasMultipleCorrect = isObj && q.hadMultipleCorrectAnswers;
     const hasDuplicateOptions = isObj && q.hasDuplicateOptions;
-    const needsWarning = hasNoCorrect || hasMultipleCorrect || hasDuplicateOptions;
+    const hasFewOptions = isObj && (!q.options || q.options.length < 5);
+    const isDuplicate = isDuplicateQuestion(q, state.questions);
+    const needsWarning = hasNoCorrect || hasMultipleCorrect || hasDuplicateOptions || hasFewOptions || isDuplicate;
+
+    const warningAlerts = [];
+    if (isDuplicate) {
+      warningAlerts.push("⚠️ Atenção: Foi identificada outra questão com o mesmo conteúdo cadastrada no banco (questão repetida).");
+    }
+    if (hasNoCorrect) {
+      warningAlerts.push("⚠️ Ajustar alternativa correta (nenhuma alternativa com '*' foi sinalizada).");
+    }
+    if (hasMultipleCorrect) {
+      warningAlerts.push("⚠️ Atenção: Mais de uma alternativa com '*' foi sinalizada. Só pode haver uma alternativa correta (apenas a primeira foi mantida).");
+    }
+    if (hasDuplicateOptions) {
+      warningAlerts.push("⚠️ Atenção: Foram identificadas alternativas repetidas nesta questão.");
+    }
+    if (hasFewOptions) {
+      const optCount = q.options ? q.options.length : 0;
+      warningAlerts.push(`⚠️ Atenção: Esta questão possui apenas ${optCount} alternativa${optCount === 1 ? '' : 's'} (o padrão são 5 alternativas).`);
+    }
+
+    const warningAlertHtml = warningAlerts.map(msg => `
+      <div class="q-warning-alert" style="background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 4px; font-size: 0.82rem; margin: 8px 0; display: flex; align-items: center; gap: 6px; font-weight: 600;">
+        ${msg}
+      </div>
+    `).join('');
 
     let optionsHtml = '';
-    if (isObj && q.options.length > 0) {
-      const warningAlerts = [];
-      if (hasNoCorrect) {
-        warningAlerts.push("⚠️ Ajustar alternativa correta (nenhuma alternativa com '*' foi sinalizada).");
-      }
-      if (hasMultipleCorrect) {
-        warningAlerts.push("⚠️ Atenção: Mais de uma alternativa com '*' foi sinalizada. Só pode haver uma alternativa correta (apenas a primeira foi mantida).");
-      }
-      if (hasDuplicateOptions) {
-        warningAlerts.push("⚠️ Atenção: Foram identificadas alternativas repetidas nesta questão.");
-      }
-
-      const warningAlertHtml = warningAlerts.map(msg => `
-        <div class="q-warning-alert" style="background: #fffbeb; border-left: 4px solid #f59e0b; color: #92400e; padding: 8px 12px; border-radius: 4px; font-size: 0.82rem; margin: 8px 0; display: flex; align-items: center; gap: 6px; font-weight: 600;">
-          ${msg}
-        </div>
-      `).join('');
-
+    if (isObj && q.options && q.options.length > 0) {
       optionsHtml = `
-        ${warningAlertHtml}
         <ul class="q-options-list">
           ${q.options.map(opt => `
             <li class="${opt.isCorrect ? 'correct-opt' : ''}">
@@ -634,9 +814,11 @@ function render() {
           <div class="q-card-title">
             <span class="q-badge ${badgeClass}">${typeLabel}</span>
             <strong>${q.title}</strong>
+            ${isDuplicate ? '<span class="badge-needs-adjustment" style="background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Questão repetida</span>' : ''}
             ${hasNoCorrect ? '<span class="badge-needs-adjustment" style="background: #fee2e2; color: #b91c1c; border: 1px solid #f87171; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Ajustar alternativa correta</span>' : ''}
             ${hasMultipleCorrect ? '<span class="badge-needs-adjustment" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Só pode haver 1 alternativa correta</span>' : ''}
             ${hasDuplicateOptions ? '<span class="badge-needs-adjustment" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Alternativas repetidas</span>' : ''}
+            ${hasFewOptions ? `<span class="badge-needs-adjustment" style="background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 12px; margin-left: 6px; display: inline-flex; align-items: center; gap: 3px;">⚠️ Menos de 5 alternativas (${q.options ? q.options.length : 0})</span>` : ''}
             ${isEditing ? '<span style="color: #2563eb; font-size: 0.78rem; font-weight: 600; margin-left: 6px;">(Editando no momento)</span>' : ''}
           </div>
           <div class="q-card-actions">
@@ -645,6 +827,7 @@ function render() {
           </div>
         </div>
         <div class="q-card-body">
+          ${warningAlertHtml}
           <div class="q-prompt">${formatCardHtml(q.prompt)}</div>
           ${optionsHtml}
           ${q.modelAnswer ? `<div class="q-model-answer"><strong>Padrão de Resposta:</strong><div class="q-formatted-content">${formatCardHtml(q.modelAnswer)}</div></div>` : ''}

@@ -218,6 +218,12 @@ export const QuestionParser = {
         Logger.warn(`Atenção: Foram identificadas alternativas repetidas na "${restoredTitle}".`);
       }
 
+      // Verifica quantidade de alternativas (o padrão são 5 para questões objetivas)
+      const hasFewOptions = restoredOptions.length < 5;
+      if (hasFewOptions) {
+        Logger.warn(`Atenção: A "${restoredTitle}" possui apenas ${restoredOptions.length} alternativas (o padrão são 5 alternativas).`);
+      }
+
       const correctOpt = restoredOptions.find(opt => opt.isCorrect);
       const statusStr = correctOpt ? `Correta: ${correctOpt.letter.toUpperCase()}` : 'Ajustar alternativa correta';
       Logger.success(`Parse concluído: [Múltipla Escolha] "${restoredTitle}" com ${restoredOptions.length} alternativas (${statusStr}).`);
@@ -232,7 +238,8 @@ export const QuestionParser = {
         feedback: feedback,
         needsCorrectAnswerAdjustment: needsCorrectAnswerAdjustment,
         hadMultipleCorrectAnswers: hadMultipleCorrectAnswers,
-        hasDuplicateOptions: hasDuplicateOptions
+        hasDuplicateOptions: hasDuplicateOptions,
+        hasFewOptions: hasFewOptions
       };
     } else {
       // É Discursiva
