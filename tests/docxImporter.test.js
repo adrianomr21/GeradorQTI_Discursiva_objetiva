@@ -155,4 +155,33 @@ describe('DocxImporter Module', () => {
     assert.ok(q2.prompt.includes('receita e de custo'));
     assert.ok(q2.modelAnswer.includes('<img src="data:image/svg+xml;base64,'), 'Padrão de resposta da Questão 2 deve conter gráfico vetorial SVG');
   });
+
+  it('deve importar corretamente operadores lógicos, relacionais e aspas sem dupla conversão de entidades (data/Questoes_Av2.docx)', async () => {
+    const docxPath = 'data/Questoes_Av2.docx';
+    if (!fs.existsSync(docxPath)) return;
+
+    const buffer = fs.readFileSync(docxPath);
+    const result = await DocxImporter.importDocx(buffer, 1);
+
+    assert.ok(result);
+    assert.strictEqual(result.questions.length, 15);
+
+    // Questão 2: deve conter operadores relacionais e lógicos limpos sem &amp;lt; ou &amp;gt; ou &amp;amp;
+    const q2 = result.questions[1];
+    assert.strictEqual(q2.title, 'Questão 2');
+    const optB = q2.options.find(o => o.letter === 'b');
+    const optC = q2.options.find(o => o.letter === 'c');
+    const optD = q2.options.find(o => o.letter === 'd');
+    assert.strictEqual(optB.text, '0&lt;=nota&lt;=0');
+    assert.strictEqual(optC.text, 'nota&gt;=0 || nota&lt;=10');
+    assert.strictEqual(optD.text, 'nota&gt;=0 &amp;&amp; nota&lt;=10');
+    assert.ok(!q2.feedback.includes('&amp;amp;'));
+    assert.ok(!q2.feedback.includes('&amp;gt;'));
+
+    // Questão 3: total_a_pagar > 0
+    const q3 = result.questions[2];
+    const q3OptB = q3.options.find(o => o.letter === 'b');
+    assert.strictEqual(q3OptB.text, 'total_a_pagar &gt; 0');
+  });
 });
+

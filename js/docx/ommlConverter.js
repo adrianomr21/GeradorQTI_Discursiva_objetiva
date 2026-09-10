@@ -440,6 +440,11 @@ export const OmmlConverter = {
   cleanMathText(text) {
     if (!text) return '';
     return text
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
       .replace(/\u2061/g, '') // remove caractere invisível de aplicação de função
       .replace(/∙|·/g, ' \\cdot ')
       .replace(/∫/g, ' \\int ')

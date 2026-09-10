@@ -279,11 +279,7 @@ export const DocxImporter = {
       }
 
       if (runText) {
-        // Escapa caracteres especiais básicos
-        let formatted = runText
-          .replace(/&/g, '&amp;')
-          .replace(/</g, '&lt;')
-          .replace(/>/g, '&gt;');
+        let formatted = runText;
 
         // Aplica estilos de caractere
         const hasBold = /<w:b(?:\s|\/|>)/i.test(chunk) && !/<w:b\s+w:val=["'](?:0|false|none)["']/i.test(chunk);
