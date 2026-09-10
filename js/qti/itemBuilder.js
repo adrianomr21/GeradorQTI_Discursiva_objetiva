@@ -42,7 +42,7 @@ export const ItemBuilder = {
     }).join('');
 
     // Formata o Feedback / Gabarito Comentado
-    const feedbackText = question.feedback ? question.feedback : 'Gabarito oficial';
+    const feedbackText = question.feedback ? question.feedback : '';
     const formattedFeedback = XmlHelpers.formatContent(feedbackText);
 
     return `<?xml version='1.0' encoding='UTF-8'?>
