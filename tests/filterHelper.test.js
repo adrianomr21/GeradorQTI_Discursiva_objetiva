@@ -123,8 +123,104 @@ e) Florença`;
     assert.strictEqual(hasQuestionIssues(q3, bank), false, 'q3 está perfeita e sem problemas');
   });
 
+  it('não deve marcar como repetidas questões com o mesmo texto de enunciado mas alternativas diferentes', () => {
+    const q1 = {
+      id: 1,
+      type: 'multiple_choice',
+      prompt: '<p>A partir da análise do trecho de código em linguagem Java abaixo, é correto afirmar que:</p>',
+      options: [
+        { letter: 'a', text: 'Opção A1', isCorrect: false },
+        { letter: 'b', text: 'Opção B1', isCorrect: true },
+        { letter: 'c', text: 'Opção C1', isCorrect: false },
+        { letter: 'd', text: 'Opção D1', isCorrect: false },
+        { letter: 'e', text: 'Opção E1', isCorrect: false }
+      ]
+    };
+
+    const q2 = {
+      id: 2,
+      type: 'multiple_choice',
+      prompt: '<p>A partir da análise do trecho de código em linguagem Java abaixo, é correto afirmar que:</p>',
+      options: [
+        { letter: 'a', text: 'Opção A2 diferente', isCorrect: false },
+        { letter: 'b', text: 'Opção B2 diferente', isCorrect: false },
+        { letter: 'c', text: 'Opção C2 diferente', isCorrect: true },
+        { letter: 'd', text: 'Opção D2 diferente', isCorrect: false },
+        { letter: 'e', text: 'Opção E2 diferente', isCorrect: false }
+      ]
+    };
+
+    assert.strictEqual(isSameQuestion(q1, q2), false);
+    assert.strictEqual(isDuplicateQuestion(q1, [q1, q2]), false);
+    assert.strictEqual(isDuplicateQuestion(q2, [q1, q2]), false);
+  });
+
+  it('não deve marcar como repetidas questões com o mesmo texto de enunciado mas imagens diferentes', () => {
+    const q1 = {
+      id: 1,
+      type: 'multiple_choice',
+      prompt: '<p>Considere o código a seguir:</p><p><img src="data:image/png;base64,IMAGEM_1_AAA" /></p>',
+      options: [
+        { letter: 'a', text: 'Opção 1', isCorrect: true },
+        { letter: 'b', text: 'Opção 2', isCorrect: false },
+        { letter: 'c', text: 'Opção 3', isCorrect: false },
+        { letter: 'd', text: 'Opção 4', isCorrect: false },
+        { letter: 'e', text: 'Opção 5', isCorrect: false }
+      ]
+    };
+
+    const q2 = {
+      id: 2,
+      type: 'multiple_choice',
+      prompt: '<p>Considere o código a seguir:</p><p><img src="data:image/png;base64,IMAGEM_2_BBB" /></p>',
+      options: [
+        { letter: 'a', text: 'Opção 1', isCorrect: true },
+        { letter: 'b', text: 'Opção 2', isCorrect: false },
+        { letter: 'c', text: 'Opção 3', isCorrect: false },
+        { letter: 'd', text: 'Opção 4', isCorrect: false },
+        { letter: 'e', text: 'Opção 5', isCorrect: false }
+      ]
+    };
+
+    assert.strictEqual(isSameQuestion(q1, q2), false);
+    assert.strictEqual(isDuplicateQuestion(q1, [q1, q2]), false);
+    assert.strictEqual(isDuplicateQuestion(q2, [q1, q2]), false);
+  });
+
+  it('deve marcar como repetidas questões com as mesmas alternativas mesmo que estejam embaralhadas', () => {
+    const q1 = {
+      id: 1,
+      type: 'multiple_choice',
+      prompt: '<p>Qual é a capital da França?</p>',
+      options: [
+        { letter: 'a', text: 'Paris', isCorrect: true },
+        { letter: 'b', text: 'Lyon', isCorrect: false },
+        { letter: 'c', text: 'Marselha', isCorrect: false },
+        { letter: 'd', text: 'Nice', isCorrect: false },
+        { letter: 'e', text: 'Toulouse', isCorrect: false }
+      ]
+    };
+
+    const q2 = {
+      id: 2,
+      type: 'multiple_choice',
+      prompt: '<p>Qual é a capital da França?</p>',
+      options: [
+        { letter: 'a', text: 'Toulouse', isCorrect: false },
+        { letter: 'b', text: 'Paris', isCorrect: true },
+        { letter: 'c', text: 'Nice', isCorrect: false },
+        { letter: 'd', text: 'Lyon', isCorrect: false },
+        { letter: 'e', text: 'Marselha', isCorrect: false }
+      ]
+    };
+
+    assert.strictEqual(isSameQuestion(q1, q2), true);
+    assert.strictEqual(isDuplicateQuestion(q1, [q1, q2]), true);
+  });
+
   it('deve retornar false com segurança para objetos nulos ou indefinidos', () => {
     assert.strictEqual(hasQuestionIssues(null), false);
     assert.strictEqual(hasQuestionIssues(undefined), false);
   });
 });
+

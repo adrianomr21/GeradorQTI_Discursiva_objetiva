@@ -15,7 +15,71 @@ export const state = {
 };
 
 /**
- * Verifica se duas questões possuem o mesmo enunciado/conteúdo
+ * Extrai lista de imagens (src) de um fragmento HTML
+ * @param {string} html
+ * @returns {Array<string>}
+ */
+function extractImagesFromHtml(html = '') {
+  if (!html) return [];
+  const matches = [];
+  const regex = /<img[^>]+src=["']([^"']+)["']/gi;
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    matches.push(m[1]);
+  }
+  return matches;
+}
+
+/**
+ * Extrai lista de fórmulas LaTeX de um fragmento HTML
+ * @param {string} html
+ * @returns {Array<string>}
+ */
+function extractMathFromHtml(html = '') {
+  if (!html) return [];
+  const matches = [];
+  const regex = /data-latex=["']([^"']+)["']/gi;
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    matches.push(m[1].trim());
+  }
+  return matches;
+}
+
+/**
+ * Compara se duas listas de strings são idênticas
+ * @param {Array<string>} list1
+ * @param {Array<string>} list2
+ * @returns {boolean}
+ */
+function areStringListsEqual(list1 = [], list2 = []) {
+  if (list1.length !== list2.length) return false;
+  for (let i = 0; i < list1.length; i++) {
+    if (list1[i] !== list2[i]) return false;
+  }
+  return true;
+}
+
+/**
+ * Gera uma assinatura canônica de um conjunto de alternativas
+ * @param {Array} options
+ * @returns {string}
+ */
+function getOptionSignature(options = []) {
+  if (!options || !Array.isArray(options) || options.length === 0) return '';
+  return options
+    .map(opt => {
+      const text = QuestionParser.stripHtml(opt.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const imgs = extractImagesFromHtml(opt.text || '').join(';');
+      const maths = extractMathFromHtml(opt.text || '').join(';');
+      return `${text}[IMG:${imgs}][MATH:${maths}]`;
+    })
+    .sort()
+    .join(' || ');
+}
+
+/**
+ * Verifica se duas questões possuem o mesmo conteúdo (enunciado, imagens, fórmulas e alternativas/respostas)
  * @param {Object} q1
  * @param {Object} q2
  * @returns {boolean}
@@ -24,6 +88,10 @@ export function isSameQuestion(q1, q2) {
   if (!q1 || !q2) return false;
   if (q1 === q2) return false;
 
+  // 1. Tipos diferentes não são a mesma questão
+  if (q1.type !== q2.type) return false;
+
+  // 2. Compara texto normalizado do enunciado
   const normPrompt1 = QuestionParser.stripHtml(q1.prompt || '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -34,27 +102,49 @@ export function isSameQuestion(q1, q2) {
     .trim()
     .toLowerCase();
 
-  if (!normPrompt1 || !normPrompt2) return false;
   if (normPrompt1 !== normPrompt2) return false;
 
-  const getOptSignature = (item) => {
-    if (item.type === 'multiple_choice' && item.options && item.options.length > 0) {
-      return item.options
-        .map(opt => QuestionParser.stripHtml(opt.text || '').replace(/\s+/g, ' ').trim().toLowerCase())
-        .sort()
-        .join('|');
-    }
-    if (item.type === 'discursive' && item.modelAnswer) {
-      return QuestionParser.stripHtml(item.modelAnswer || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    }
-    return '';
-  };
+  // 3. Compara imagens do enunciado
+  const imgs1 = extractImagesFromHtml(q1.prompt || '');
+  const imgs2 = extractImagesFromHtml(q2.prompt || '');
+  if (!areStringListsEqual(imgs1, imgs2)) return false;
 
-  const sig1 = getOptSignature(q1);
-  const sig2 = getOptSignature(q2);
+  // 4. Compara fórmulas matemáticas do enunciado
+  const maths1 = extractMathFromHtml(q1.prompt || '');
+  const maths2 = extractMathFromHtml(q2.prompt || '');
+  if (!areStringListsEqual(maths1, maths2)) return false;
 
-  if (sig1 && sig2) {
-    return sig1 === sig2 || normPrompt1.length > 25;
+  // Se o enunciado estiver completamente vazio (nem texto nem imagem nem fórmula), não considera igual
+  if (!normPrompt1 && imgs1.length === 0 && maths1.length === 0) return false;
+
+  // 5. Compara alternativas para questões objetivas
+  if (q1.type === 'multiple_choice') {
+    const opts1 = q1.options || [];
+    const opts2 = q2.options || [];
+    if (opts1.length !== opts2.length) return false;
+    if (opts1.length === 0 && opts2.length === 0) return true;
+
+    const sig1 = getOptionSignature(opts1);
+    const sig2 = getOptionSignature(opts2);
+    return sig1 === sig2;
+  }
+
+  // 6. Compara padrão de resposta para questões discursivas
+  if (q1.type === 'discursive') {
+    if (q1.modelAnswer || q2.modelAnswer) {
+      const ansText1 = QuestionParser.stripHtml(q1.modelAnswer || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const ansText2 = QuestionParser.stripHtml(q2.modelAnswer || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (ansText1 !== ansText2) return false;
+
+      const ansImgs1 = extractImagesFromHtml(q1.modelAnswer || '');
+      const ansImgs2 = extractImagesFromHtml(q2.modelAnswer || '');
+      if (!areStringListsEqual(ansImgs1, ansImgs2)) return false;
+
+      const ansMath1 = extractMathFromHtml(q1.modelAnswer || '');
+      const ansMath2 = extractMathFromHtml(q2.modelAnswer || '');
+      if (!areStringListsEqual(ansMath1, ansMath2)) return false;
+    }
+    return true;
   }
 
   return true;
