@@ -4,6 +4,7 @@ import { ZipBuilder } from './qti/zipBuilder.js';
 import { QtiImporter } from './qti/qtiImporter.js';
 import { DocxImporter } from './docx/docxImporter.js';
 import { DocxExporter } from './docx/docxExporter.js';
+import { JsonImporter } from './jsonImporter.js';
 import { RichTextEditor } from './editor/richTextEditor.js';
 
 // Estado global da aplicação
@@ -221,6 +222,8 @@ function initElements() {
     inputFileDocx: document.getElementById('input-file-docx'),
     btnImportQti: document.getElementById('btn-import-qti'),
     inputFileQti: document.getElementById('input-file-qti'),
+    btnImportJson: document.getElementById('btn-import-json'),
+    inputFileJson: document.getElementById('input-file-json'),
     btnClearAll: document.getElementById('btn-clear-all'),
     btnSampleObj: document.getElementById('btn-sample-obj'),
     btnSampleDisc: document.getElementById('btn-sample-disc'),
@@ -342,6 +345,12 @@ function init() {
     elements.inputFileQti?.click();
   });
   elements.inputFileQti?.addEventListener('change', handleImportQtiFile);
+
+  // 6.1. Botão Importar JSON (.json)
+  elements.btnImportJson?.addEventListener('click', () => {
+    elements.inputFileJson?.click();
+  });
+  elements.inputFileJson?.addEventListener('change', handleImportJsonFile);
 
   // 7. Botão Exportar Pacote QTI
   elements.btnExportZip.addEventListener('click', handleExportZip);
@@ -573,6 +582,43 @@ async function handleImportQtiFile(e) {
     }
   } catch (err) {
     Logger.error(`Erro ao importar pacote QTI: ${err.message}`);
+    console.error(err);
+  } finally {
+    e.target.value = ''; // Reseta input para permitir reimportar o mesmo arquivo se desejado
+  }
+}
+
+/**
+ * Importa um banco de questões a partir de um arquivo JSON (.json)
+ * e adiciona continuamente as questões à lista existente
+ */
+async function handleImportJsonFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  Logger.info(`Carregando arquivo JSON: "${file.name}" (${(file.size / 1024).toFixed(1)} KB)...`);
+
+  try {
+    const text = await file.text();
+    const startingIndex = state.questions.length + 1;
+    const result = JsonImporter.importJson(text, startingIndex);
+
+    if (result.questions && result.questions.length > 0) {
+      // Adiciona as questões importadas à lista existente (sem sobrescrever as atuais)
+      state.questions.push(...result.questions);
+
+      render();
+      Logger.success(`🎉 ${result.questions.length} questões importadas com sucesso do JSON! Total no banco: ${state.questions.length} questões.`);
+
+      const duplicatesCount = state.questions.filter(q => isDuplicateQuestion(q, state.questions)).length;
+      if (duplicatesCount > 0) {
+        Logger.warn(`⚠️ Atenção: Foram identificadas ${duplicatesCount} questões repetidas no banco após a importação.`);
+      }
+    } else {
+      Logger.warn('Nenhuma questão válida foi encontrada no arquivo JSON.');
+    }
+  } catch (err) {
+    Logger.error(`Erro ao importar arquivo JSON: ${err.message}`);
     console.error(err);
   } finally {
     e.target.value = ''; // Reseta input para permitir reimportar o mesmo arquivo se desejado
