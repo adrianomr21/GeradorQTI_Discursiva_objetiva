@@ -240,12 +240,7 @@ export const DocxImporter = {
     if (blipMatch) {
       const rId = blipMatch[1] || blipMatch[2] || blipMatch[3];
       if (rId && mediaMap[rId]) {
-        const extentMatch = chunk.match(/<wp:extent\s+cx=["'](\d+)["']\s+cy=["'](\d+)["']/i);
-        let dimStyle = 'max-width: 100%; height: auto;';
-        if (extentMatch) {
-          const widthPx = Math.round(parseInt(extentMatch[1], 10) / 9525);
-          if (widthPx > 0) dimStyle = `max-width: 100%; width: ${widthPx}px; height: auto;`;
-        }
+        const dimStyle = 'max-width: 100%; height: auto;';
         result += `<img src="${mediaMap[rId]}" style="${dimStyle}" />`;
       }
     }

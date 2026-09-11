@@ -861,6 +861,20 @@ pre#json-preview {
   margin-bottom: 8px;
 }
 
+.q-prompt img,
+.question-card img,
+.q-card-body img,
+.q-formatted-content img,
+.q-model-answer img,
+.q-feedback img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 8px 0;
+  display: block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
 .q-options-list {
   list-style: none;
   margin-left: 4px;
