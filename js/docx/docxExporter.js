@@ -107,6 +107,13 @@ export const DocxExporter = {
       return `\n%%BLOCK_XML_${bqXml}%%BLOCK_XML_END%\n`;
     });
 
+    text = text.replace(/<iframe[^>]*\bsrc=["']([^"']+)["'][^>]*>[\s\S]*?<\/iframe>/gi, (match, src) => {
+      const rId = `rIdLink_${context.links.length + 1}`;
+      context.links.push({ id: rId, target: src });
+      const bqXml = `<w:p><w:pPr><w:spacing w:after="120"/></w:pPr><w:hyperlink r:id="${rId}"><w:r><w:rPr><w:b/><w:u w:val="single"/><w:color w:val="2563EB"/></w:rPr><w:t xml:space="preserve">🎥 [Vídeo: ${this.escapeXml(src)}]</w:t></w:r></w:hyperlink></w:p>`;
+      return `\n%%BLOCK_XML_${bqXml}%%BLOCK_XML_END%\n`;
+    });
+
     const blocks = text.split(/\n+/);
     blocks.forEach(block => {
       const trimmed = block.trim();
@@ -236,6 +243,16 @@ export const DocxExporter = {
     if (tag === 'img') {
       const src = node.getAttribute('src') || '';
       return this.processImageSrc(src, context);
+    }
+
+    if (tag === 'iframe' || tag === 'video') {
+      const src = node.getAttribute('src') || '';
+      if (src) {
+        const rId = `rIdLink_${context.links.length + 1}`;
+        context.links.push({ id: rId, target: src });
+        const linkStyles = { ...newStyles, underline: true, color: '2563EB', bold: true };
+        return `<w:hyperlink r:id="${rId}"><w:r>${this.buildRPr(linkStyles)}<w:t xml:space="preserve">🎥 [Vídeo: ${this.escapeXml(src)}]</w:t></w:r></w:hyperlink>`;
+      }
     }
 
     if (node.classList && (node.classList.contains('qti-math') || node.classList.contains('math-tex') || node.classList.contains('katex'))) {

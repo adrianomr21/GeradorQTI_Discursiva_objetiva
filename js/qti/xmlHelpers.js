@@ -102,8 +102,8 @@ export const XmlHelpers = {
     // Limpa representações visuais duplicadas de KaTeX deixando MathML puro para o QTI
     const cleanText = this.cleanMathForQti(text);
 
-    // Se o texto já contiver tags de bloco HTML (<p>, <div>, <table>, <ul>, <ol>, <blockquote>), apenas retorna
-    if (/<(?:p|div|table|ul|ol|blockquote|h[1-6])[\s>]/i.test(cleanText)) {
+    // Se o texto já contiver tags de bloco HTML (<p>, <div>, <table>, <ul>, <ol>, <blockquote>, <iframe>, <video>, <object>, <figure>), apenas retorna
+    if (/<(?:p|div|table|ul|ol|blockquote|h[1-6]|iframe|video|object|figure)[\s>]/i.test(cleanText)) {
       return cleanText;
     }
 

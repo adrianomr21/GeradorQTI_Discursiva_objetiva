@@ -138,4 +138,26 @@ técnicas e subáreas.</p>`;
     assert.strictEqual(parsed.options[0].isCorrect, true);
     assert.ok(parsed.feedback.includes('<ul><li>Item do feedback</li></ul>'));
   });
+
+  it('deve preservar vídeos embedados (iframe e video) no enunciado e nas respostas', () => {
+    const videoInput = `
+      <p>Questão 4</p>
+      <p>Assista ao vídeo abaixo para responder à questão:</p>
+      <iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ" width="560" height="315" frameborder="0" allowfullscreen></iframe>
+      <p>*a) Alternativa A com resposta correta</p>
+      <p>b) Alternativa B</p>
+      <p>Padrão de resposta:</p>
+      <p>Explicação baseada no vídeo.</p>
+      <p>Feedback:</p>
+      <p>Confira o trecho do vídeo.</p>
+    `;
+
+    const parsed = QuestionParser.parse(videoInput, 4);
+    assert.ok(parsed);
+    assert.strictEqual(parsed.type, 'multiple_choice');
+    assert.ok(parsed.prompt.includes('<iframe src="https://www.youtube.com/embed/dQw4w9WgXcQ"'));
+    assert.ok(parsed.prompt.includes('allowfullscreen="allowfullscreen"'));
+    assert.strictEqual(parsed.options.length, 2);
+    assert.strictEqual(parsed.options[0].isCorrect, true);
+  });
 });

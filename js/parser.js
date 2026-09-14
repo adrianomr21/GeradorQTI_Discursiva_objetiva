@@ -32,7 +32,7 @@ export const QuestionParser = {
         .replace(/&nbsp;/gi, ' ')
         .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
         .replace(/<\/(p|div|h[1-6]|blockquote)>/gi, '__BLOCK_DELIMITER__')
-        .replace(/<\/(ul|ol|table)>/gi, '$&__BLOCK_DELIMITER__')
+        .replace(/<\/(ul|ol|table|iframe|video|object)>/gi, '$&__BLOCK_DELIMITER__')
         .replace(/(?:^|\n)(\s*\*?(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*|\s*(?:padr[aã]o\s+de\s+resposta|feedback|gabarito|coment[aá]rio|quest[aã]o\s*\d+):?)/gi, '__BLOCK_DELIMITER__$1')
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/__BLOCK_DELIMITER__/g, '\n');
@@ -86,7 +86,7 @@ export const QuestionParser = {
       const lineHtml = rawLines[lineIndex];
       const linePlain = this.stripHtml(lineHtml);
 
-      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
+      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
         continue;
       }
 
@@ -392,7 +392,7 @@ export const QuestionParser = {
       .map(line => {
         const trimmed = line.trim();
         if (!trimmed) return '';
-        if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote')) {
+        if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<iframe') || trimmed.startsWith('<video') || trimmed.startsWith('<object') || trimmed.startsWith('<embed') || trimmed.startsWith('<figure')) {
           return HtmlSanitizer.toValidXhtml(trimmed);
         }
         return `<p>${HtmlSanitizer.toValidXhtml(trimmed)}</p>`;

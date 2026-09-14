@@ -48,6 +48,22 @@ function extractMathFromHtml(html = '') {
 }
 
 /**
+ * Extrai lista de vídeos (src de iframe, video, source, embed, object) de um fragmento HTML
+ * @param {string} html
+ * @returns {Array<string>}
+ */
+function extractVideosFromHtml(html = '') {
+  if (!html) return [];
+  const matches = [];
+  const regex = /<(?:iframe|video|source|embed|object)[^>]+(?:src|data)=["']([^"']+)["']/gi;
+  let m;
+  while ((m = regex.exec(html)) !== null) {
+    matches.push(m[1].trim());
+  }
+  return matches;
+}
+
+/**
  * Compara se duas listas de strings são idênticas
  * @param {Array<string>} list1
  * @param {Array<string>} list2
@@ -73,14 +89,15 @@ function getOptionSignature(options = []) {
       const text = QuestionParser.stripHtml(opt.text || '').replace(/\s+/g, ' ').trim().toLowerCase();
       const imgs = extractImagesFromHtml(opt.text || '').join(';');
       const maths = extractMathFromHtml(opt.text || '').join(';');
-      return `${text}[IMG:${imgs}][MATH:${maths}]`;
+      const vids = extractVideosFromHtml(opt.text || '').join(';');
+      return `${text}[IMG:${imgs}][MATH:${maths}][VID:${vids}]`;
     })
     .sort()
     .join(' || ');
 }
 
 /**
- * Verifica se duas questões possuem o mesmo conteúdo (enunciado, imagens, fórmulas e alternativas/respostas)
+ * Verifica se duas questões possuem o mesmo conteúdo (enunciado, imagens, fórmulas, vídeos e alternativas/respostas)
  * @param {Object} q1
  * @param {Object} q2
  * @returns {boolean}
@@ -115,10 +132,15 @@ export function isSameQuestion(q1, q2) {
   const maths2 = extractMathFromHtml(q2.prompt || '');
   if (!areStringListsEqual(maths1, maths2)) return false;
 
-  // Se o enunciado estiver completamente vazio (nem texto nem imagem nem fórmula), não considera igual
-  if (!normPrompt1 && imgs1.length === 0 && maths1.length === 0) return false;
+  // 5. Compara vídeos do enunciado (iframe, video, source)
+  const vids1 = extractVideosFromHtml(q1.prompt || '');
+  const vids2 = extractVideosFromHtml(q2.prompt || '');
+  if (!areStringListsEqual(vids1, vids2)) return false;
 
-  // 5. Compara alternativas para questões objetivas
+  // Se o enunciado estiver completamente vazio (nem texto nem imagem nem fórmula nem vídeo), não considera igual
+  if (!normPrompt1 && imgs1.length === 0 && maths1.length === 0 && vids1.length === 0) return false;
+
+  // 6. Compara alternativas para questões objetivas
   if (q1.type === 'multiple_choice') {
     const opts1 = q1.options || [];
     const opts2 = q2.options || [];
@@ -130,7 +152,7 @@ export function isSameQuestion(q1, q2) {
     return sig1 === sig2;
   }
 
-  // 6. Compara padrão de resposta para questões discursivas
+  // 7. Compara padrão de resposta para questões discursivas
   if (q1.type === 'discursive') {
     if (q1.modelAnswer || q2.modelAnswer) {
       const ansText1 = QuestionParser.stripHtml(q1.modelAnswer || '').replace(/\s+/g, ' ').trim().toLowerCase();
@@ -144,6 +166,10 @@ export function isSameQuestion(q1, q2) {
       const ansMath1 = extractMathFromHtml(q1.modelAnswer || '');
       const ansMath2 = extractMathFromHtml(q2.modelAnswer || '');
       if (!areStringListsEqual(ansMath1, ansMath2)) return false;
+
+      const ansVids1 = extractVideosFromHtml(q1.modelAnswer || '');
+      const ansVids2 = extractVideosFromHtml(q2.modelAnswer || '');
+      if (!areStringListsEqual(ansVids1, ansVids2)) return false;
     }
     return true;
   }

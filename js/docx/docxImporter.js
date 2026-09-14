@@ -245,6 +245,32 @@ export const DocxImporter = {
       }
     }
 
+    // Verifica Web Video embutido no Word (<wp15:webVideoPr embeddedHtml="..."> ou similar)
+    const webVideoMatch = chunk.match(/<wp15:webVideoPr[^>]*embeddedHtml=["']([^"']+)["']/i) ||
+                          chunk.match(/<wp14:webVideoPr[^>]*embeddedHtml=["']([^"']+)["']/i) ||
+                          chunk.match(/embeddedHtml=["']([^"']+)["']/i);
+    if (webVideoMatch) {
+      let decodedHtml = webVideoMatch[1]
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      result += decodedHtml;
+    }
+
+    // Verifica arquivos ou links de vídeo (<a:videoFile r:link="...">)
+    const videoFileMatch = chunk.match(/<a:videoFile[^>]*r:link=["']([^"']+)["']/i) ||
+                           chunk.match(/<a:quickTimeFile[^>]*r:link=["']([^"']+)["']/i);
+    if (videoFileMatch && mediaMap[videoFileMatch[1]]) {
+      const videoUrl = mediaMap[videoFileMatch[1]];
+      if (/^https?:\/\/|^\/\//i.test(videoUrl)) {
+        result += `<iframe src="${videoUrl}" width="560" height="315" style="max-width: 100%; border: 0;" allowfullscreen="allowfullscreen"></iframe>`;
+      } else {
+        result += `<video controls="controls" style="max-width: 100%;"><source src="${videoUrl}" /></video>`;
+      }
+    }
+
     // Verifica Formas e Vetores de Desenho (DrawingML / VML) - Setas, Linhas, Caixas
     if (!blipMatch && (chunk.includes('<w:drawing') || chunk.includes('<w:pict') || chunk.includes('<mc:AlternateContent') || chunk.includes('<wps:wsp>'))) {
       if (/prst=["'](?:rightArrow|leftRightArrow|leftArrow|upArrow|downArrow|stripedRightArrow|notchedRightArrow|curvedRightArrow)["']/i.test(chunk) ||

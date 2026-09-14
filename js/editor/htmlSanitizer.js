@@ -19,8 +19,8 @@ export const HtmlSanitizer = {
     clean = clean.replace(/<!--[\s\S]*?-->/g, '');
     clean = clean.replace(/<!\[[\s\S]*?\]>/g, '');
 
-    // 2. Remove tags perigosas e seu conteúdo interno (script, style, xml, iframe, applet)
-    clean = clean.replace(/<(?:script|style|xml|iframe|applet)[\s\S]*?<\/(?:script|style|xml|iframe|applet)>/gi, '');
+    // 2. Remove tags perigosas e seu conteúdo interno (script, style, xml, applet) - preservando iframe, video, audio, embed, object
+    clean = clean.replace(/<(?:script|style|xml|applet)[\s\S]*?<\/(?:script|style|xml|applet)>/gi, '');
     clean = clean.replace(/<\/?(?:meta|link|o:p|font|basefont)[^>]*>/gi, '');
 
     // 3. Remove atributos poluídos do Word (class="Mso...", lang, etc.) mas preserva todas as classes do KaTeX, tabelas e editor
@@ -81,7 +81,25 @@ export const HtmlSanitizer = {
     // <img ...> -> <img ... /> (caso não esteja fechada)
     xhtml = xhtml.replace(/<img\s+([^>]*[^\/])>/gi, '<img $1 />');
 
-    // Converte & soltos em &amp; (que não sejam entidades existentes como &amp;, &lt;, &gt;, &quot;, &apos;)
+    // <source ...> -> <source ... />
+    xhtml = xhtml.replace(/<source\s+([^>]*[^\/])>/gi, '<source $1 />');
+
+    // <track ...> -> <track ... />
+    xhtml = xhtml.replace(/<track\s+([^>]*[^\/])>/gi, '<track $1 />');
+
+    // <embed ...> -> <embed ... />
+    xhtml = xhtml.replace(/<embed\s+([^>]*[^\/])>/gi, '<embed $1 />');
+
+    // Garante fechamento explícito de <iframe> caso venha auto-fechado <iframe .../>
+    xhtml = xhtml.replace(/<iframe\s+([^>]*)\/>/gi, '<iframe $1></iframe>');
+
+    // Converte atributos booleanos HTML (allowfullscreen, controls, etc.) para formato válido XHTML (allowfullscreen="allowfullscreen")
+    xhtml = xhtml.replace(/<(iframe|video|audio|source|object|embed)\s+([^>]*?)>/gi, (match, tag, attrs) => {
+      const cleanedAttrs = attrs.replace(/\b(allowfullscreen|controls|autoplay|loop|muted|playsinline|webkitallowfullscreen|mozallowfullscreen)\b(?!\s*=)/gi, '$1="$1"');
+      return `<${tag} ${cleanedAttrs}>`;
+    });
+
+    // Converte & soltos em &amp; (que não sejam entidades existentes como &amp;, &lt;, &gt;, &quot;, &apos;, &#123;, &#xAB;)
     xhtml = xhtml.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
 
     return xhtml;
