@@ -240,6 +240,11 @@ function initElements() {
   if (typeof document === 'undefined') return;
   elements = {
     activityTitle: document.getElementById('activity-title'),
+    btnAddQuestionModal: document.getElementById('btn-add-question-modal'),
+    modalQuestionEditor: document.getElementById('modal-question-editor'),
+    modalEditorTitle: document.getElementById('modal-editor-title'),
+    btnEditorModalClose: document.getElementById('btn-editor-modal-close'),
+    btnCancelModalEditor: document.getElementById('btn-cancel-modal-editor'),
     btnAddQuestion: document.getElementById('btn-add-question'),
     btnClearInput: document.getElementById('btn-clear-input'),
     btnExportZip: document.getElementById('btn-export-zip'),
@@ -316,6 +321,77 @@ export function questionToEditorHtml(q) {
 }
 
 /**
+ * Abre o modal do editor para adicionar uma nova questão ou editar uma questão existente
+ * @param {number|null} index - Índice da questão a ser editada ou null para nova questão
+ */
+export function openEditorModal(index = null) {
+  if (typeof document === 'undefined') return;
+
+  if (index !== null && state.questions[index]) {
+    state.editingIndex = index;
+    const q = state.questions[index];
+    const html = questionToEditorHtml(q);
+    RichTextEditor.setHtml(html);
+
+    if (elements.modalEditorTitle) {
+      elements.modalEditorTitle.textContent = `✏️ Editar Questão #${q.id || (index + 1)}`;
+    }
+    if (elements.btnAddQuestion) {
+      elements.btnAddQuestion.textContent = `💾 Salvar Alterações (Questão #${q.id || (index + 1)})`;
+      elements.btnAddQuestion.className = 'btn btn-success';
+    }
+    if (elements.btnClearInput) {
+      elements.btnClearInput.textContent = '❌ Limpar Conteúdo';
+    }
+    if (elements.editBanner) {
+      elements.editBanner.style.display = 'flex';
+      if (elements.editQuestionNum) elements.editQuestionNum.textContent = q.id || (index + 1);
+    }
+  } else {
+    state.editingIndex = null;
+    RichTextEditor.clear();
+
+    if (elements.modalEditorTitle) {
+      elements.modalEditorTitle.textContent = '➕ Adicionar Nova Questão';
+    }
+    if (elements.btnAddQuestion) {
+      elements.btnAddQuestion.textContent = '➕ Adicionar Questão ao Banco';
+      elements.btnAddQuestion.className = 'btn btn-primary';
+    }
+    if (elements.btnClearInput) {
+      elements.btnClearInput.textContent = 'Limpar Editor';
+    }
+    if (elements.editBanner) {
+      elements.editBanner.style.display = 'none';
+    }
+  }
+
+  if (elements.modalQuestionEditor) {
+    elements.modalQuestionEditor.style.display = 'flex';
+    setTimeout(() => RichTextEditor.editorElement?.focus(), 50);
+  }
+}
+
+/**
+ * Fecha o modal do editor de questões
+ */
+export function closeEditorModal() {
+  if (typeof document === 'undefined') return;
+
+  if (elements.modalQuestionEditor) {
+    elements.modalQuestionEditor.style.display = 'none';
+  }
+
+  if (state.editingIndex !== null) {
+    const editId = state.questions[state.editingIndex]?.id || (state.editingIndex + 1);
+    state.editingIndex = null;
+    RichTextEditor.clear();
+    render();
+    Logger.info(`Edição da Questão #${editId} cancelada.`);
+  }
+}
+
+/**
  * Inicializa a aplicação e registra os eventos
  */
 function init() {
@@ -353,11 +429,42 @@ function init() {
   document.getElementById('btn-tool-clear')?.addEventListener('click', () => RichTextEditor.clearFormatting());
   document.getElementById('btn-tool-source')?.addEventListener('click', () => RichTextEditor.toggleSourceMode());
 
+  // 2.1. Botão "+" para abrir Modal de Nova Questão
+  elements.btnAddQuestionModal?.addEventListener('click', () => {
+    openEditorModal(null);
+  });
+
+  // 2.2. Botões de Fechamento do Modal do Editor
+  elements.btnEditorModalClose?.addEventListener('click', closeEditorModal);
+  elements.btnCancelModalEditor?.addEventListener('click', closeEditorModal);
+
+  // Fecha modal ao clicar no backdrop (overlay)
+  elements.modalQuestionEditor?.addEventListener('click', (e) => {
+    if (e.target === elements.modalQuestionEditor) {
+      closeEditorModal();
+    }
+  });
+
+  // Fecha com a tecla Escape se sub-modais não estiverem abertos
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && elements.modalQuestionEditor?.style.display === 'flex') {
+      const latexModal = document.getElementById('modal-latex');
+      const linkModal = document.getElementById('modal-link');
+      const titleModal = document.getElementById('modal-activity-title');
+      const isSubModalOpen = (latexModal && latexModal.style.display === 'flex') ||
+                             (linkModal && linkModal.style.display === 'flex') ||
+                             (titleModal && titleModal.style.display === 'flex');
+      if (!isSubModalOpen) {
+        closeEditorModal();
+      }
+    }
+  });
+
   // 3. Botão Adicionar ou Salvar Questão
-  elements.btnAddQuestion.addEventListener('click', handleSaveOrAddQuestion);
+  elements.btnAddQuestion?.addEventListener('click', handleSaveOrAddQuestion);
 
   // 4. Botão Limpar / Cancelar Edição
-  elements.btnClearInput.addEventListener('click', handleCancelOrClear);
+  elements.btnClearInput?.addEventListener('click', handleCancelOrClear);
   elements.btnBannerCancelEdit?.addEventListener('click', handleCancelOrClear);
 
   // 5. Botão Importar Word (.docx)
@@ -379,41 +486,33 @@ function init() {
   elements.inputFileJson?.addEventListener('change', handleImportJsonFile);
 
   // 7. Botão Exportar Pacote QTI
-  elements.btnExportZip.addEventListener('click', handleExportZip);
+  elements.btnExportZip?.addEventListener('click', handleExportZip);
 
   // 8. Botão Exportar para Word (.docx)
   elements.btnExportDocx?.addEventListener('click', handleExportDocx);
 
   // 9. Botão Limpar Tudo
-  elements.btnClearAll.addEventListener('click', handleClearAll);
+  elements.btnClearAll?.addEventListener('click', handleClearAll);
 
-  // 7. Botões de Exemplos Rápidos
-  elements.btnSampleObj.addEventListener('click', () => {
-    if (state.editingIndex !== null) {
-      if (!confirm('Você está editando uma questão. Carregar o exemplo cancelará a edição atual. Continuar?')) return;
-      state.editingIndex = null;
-    }
+  // 10. Botões de Exemplos Rápidos (carregam no editor e abrem o modal)
+  elements.btnSampleObj?.addEventListener('click', () => {
+    openEditorModal(null);
     RichTextEditor.setHtml(SAMPLES.objective);
-    render();
     Logger.info('Exemplo formatado de questão Objetiva carregado no editor.');
   });
 
-  elements.btnSampleDisc.addEventListener('click', () => {
-    if (state.editingIndex !== null) {
-      if (!confirm('Você está editando uma questão. Carregar o exemplo cancelará a edição atual. Continuar?')) return;
-      state.editingIndex = null;
-    }
+  elements.btnSampleDisc?.addEventListener('click', () => {
+    openEditorModal(null);
     RichTextEditor.setHtml(SAMPLES.discursive);
-    render();
     Logger.info('Exemplo formatado de questão Discursiva carregado no editor.');
   });
 
-  // 8. Botão Limpar Logs
-  elements.btnClearLogs.addEventListener('click', () => {
+  // 11. Botão Limpar Logs
+  elements.btnClearLogs?.addEventListener('click', () => {
     Logger.clear();
   });
 
-  // 9. Barra de Filtros de Questões
+  // 12. Barra de Filtros de Questões
   document.querySelectorAll('.questions-filter-bar button[data-filter]').forEach(btn => {
     btn.addEventListener('click', () => {
       const filter = btn.getAttribute('data-filter');
@@ -422,8 +521,8 @@ function init() {
     });
   });
 
-  // 10. Alteração do título da atividade
-  elements.activityTitle.addEventListener('input', (e) => {
+  // 13. Alteração do título da atividade
+  elements.activityTitle?.addEventListener('input', (e) => {
     state.title = e.target.value.trim();
   });
 
@@ -453,7 +552,19 @@ function handleSaveOrAddQuestion() {
       state.questions[index] = parsed;
       state.editingIndex = null;
       RichTextEditor.clear();
+      if (elements.modalQuestionEditor) {
+        elements.modalQuestionEditor.style.display = 'none';
+      }
       render();
+
+      // Destaque visual suave no card sem rolar a tela
+      const cardEl = document.getElementById(`q-card-${index}`);
+      if (cardEl) {
+        cardEl.classList.remove('question-card-saved-highlight');
+        void cardEl.offsetWidth; // Força reflow para reiniciar animação
+        cardEl.classList.add('question-card-saved-highlight');
+      }
+
       Logger.success(`Questão #${parsed.id} atualizada com sucesso na mesma posição!`);
       if (isDuplicateQuestion(parsed, state.questions)) {
         Logger.warn(`⚠️ Atenção: A questão #${parsed.id} possui conteúdo repetido com outra questão do banco.`);
@@ -466,7 +577,17 @@ function handleSaveOrAddQuestion() {
     if (parsed) {
       state.questions.push(parsed);
       RichTextEditor.clear();
+      if (elements.modalQuestionEditor) {
+        elements.modalQuestionEditor.style.display = 'none';
+      }
       render();
+
+      const newIdx = state.questions.length - 1;
+      const cardEl = document.getElementById(`q-card-${newIdx}`);
+      if (cardEl) {
+        cardEl.classList.add('question-card-saved-highlight');
+      }
+
       Logger.success(`Questão #${parsed.id} adicionada à lista.`);
       if (isDuplicateQuestion(parsed, state.questions)) {
         Logger.warn(`⚠️ Atenção: A questão #${parsed.id} possui conteúdo repetido com outra questão do banco.`);
@@ -483,6 +604,9 @@ function handleCancelOrClear() {
     const editId = state.questions[state.editingIndex]?.id || (state.editingIndex + 1);
     state.editingIndex = null;
     RichTextEditor.clear();
+    if (elements.modalQuestionEditor) {
+      elements.modalQuestionEditor.style.display = 'none';
+    }
     render();
     Logger.info(`Edição da Questão #${editId} cancelada.`);
   } else {
@@ -492,25 +616,14 @@ function handleCancelOrClear() {
 }
 
 /**
- * Carrega a questão selecionada de volta para o editor para alteração in-place
+ * Carrega a questão selecionada de volta para o editor no modal sem rolar a página
  */
 export function editQuestion(index) {
   const question = state.questions[index];
   if (!question) return;
 
-  state.editingIndex = index;
-  const html = questionToEditorHtml(question);
-  RichTextEditor.setHtml(html);
-
-  // Scroll suave até o container do editor
-  const editorEl = typeof document !== 'undefined' ? document.querySelector('.editor-container') : null;
-  if (editorEl) {
-    editorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-
-  RichTextEditor.editorElement?.focus();
-  render();
-  Logger.info(`Questão #${question.id} carregada no editor para alteração. Faça os ajustes e clique em "Salvar Alterações".`);
+  openEditorModal(index);
+  Logger.info(`Questão #${question.id} aberta no editor. Faça os ajustes e clique em "Salvar Alterações".`);
 }
 
 /**
@@ -971,7 +1084,7 @@ function render() {
     };
 
     return `
-      <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsWarning ? 'question-card-warning' : ''}">
+      <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsWarning ? 'question-card-warning' : ''}" id="q-card-${idx}">
         <div class="q-card-header">
           <div class="q-card-title">
             <span class="q-badge ${badgeClass}">${typeLabel}</span>
@@ -998,6 +1111,14 @@ function render() {
       </div>
     `;
   }).join('');
+}
+
+// Expõe globalmente para os onclick dos cards no navegador
+if (typeof window !== 'undefined') {
+  window.editQuestion = editQuestion;
+  window.removeQuestion = removeQuestion;
+  window.openEditorModal = openEditorModal;
+  window.closeEditorModal = closeEditorModal;
 }
 
 // Inicia quando o DOM estiver carregado
