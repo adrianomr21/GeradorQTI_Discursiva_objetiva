@@ -42,28 +42,60 @@ export const RichTextEditor = {
    * Registra os eventos de paste, drag & drop, atalhos e seleção.
    */
   bindEvents() {
-    // 1. Suporte a Colar Imagens da Área de Transferência (Ctrl + V)
+    // 1. Suporte a Colar Textos/HTML e Imagens da Área de Transferência (Ctrl + V)
     this.editorElement.addEventListener('paste', async (e) => {
-      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+
+      const items = clipboardData.items;
       let hasImage = false;
 
-      for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-          hasImage = true;
-          e.preventDefault();
-          const file = item.getAsFile();
-          if (file) {
-            await this.insertImageFile(file);
-            Logger.success('Imagem colada diretamente da área de transferência.');
+      if (items) {
+        for (const item of items) {
+          if (item.type && item.type.indexOf('image') !== -1) {
+            hasImage = true;
+            e.preventDefault();
+            const file = item.getAsFile();
+            if (file) {
+              await this.insertImageFile(file);
+              Logger.success('Imagem colada diretamente da área de transferência.');
+            }
+            break;
           }
         }
       }
 
       if (!hasImage) {
-        // Se for texto/HTML colado do Word/Docs, executa limpeza automática leve
-        setTimeout(() => {
-          this.editorElement.innerHTML = HtmlSanitizer.cleanHtml(this.editorElement.innerHTML);
-        }, 10);
+        e.preventDefault();
+        const rawHtml = clipboardData.getData('text/html');
+        const rawText = clipboardData.getData('text/plain');
+
+        if (rawHtml) {
+          const cleanHtml = HtmlSanitizer.cleanHtml(rawHtml);
+          let success = false;
+          try {
+            success = document.execCommand('insertHTML', false, cleanHtml);
+          } catch (err) {
+            success = false;
+          }
+          if (!success) {
+            this.insertHtmlAtCursor(cleanHtml);
+          }
+        } else if (rawText) {
+          let success = false;
+          try {
+            success = document.execCommand('insertText', false, rawText);
+          } catch (err) {
+            success = false;
+          }
+          if (!success) {
+            const formatted = rawText
+              .split(/\r?\n/)
+              .map(line => line.length === 0 ? '<p><br></p>' : `<p>${line}</p>`)
+              .join('');
+            this.insertHtmlAtCursor(formatted);
+          }
+        }
       }
     });
 
@@ -448,10 +480,19 @@ export const RichTextEditor = {
       range.insertNode(frag);
       
       if (lastNode) {
-        range.setStartAfter(lastNode);
-        range.collapse(true);
+        const newRange = document.createRange();
+        if (lastNode.nodeType === Node.TEXT_NODE) {
+          newRange.setStart(lastNode, lastNode.length);
+          newRange.collapse(true);
+        } else if (lastNode.childNodes && lastNode.childNodes.length > 0) {
+          newRange.selectNodeContents(lastNode);
+          newRange.collapse(false);
+        } else {
+          newRange.setStartAfter(lastNode);
+          newRange.collapse(true);
+        }
         sel.removeAllRanges();
-        sel.addRange(range);
+        sel.addRange(newRange);
       }
     } else {
       this.editorElement.innerHTML += html;
