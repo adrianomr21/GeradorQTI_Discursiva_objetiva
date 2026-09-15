@@ -1163,10 +1163,10 @@ pre#json-preview {
   z-index: 9000;
 }
 
-.modal-card-editor {
-  max-width: 980px;
-  width: 95%;
-  max-height: 94vh;
+.modal-card.modal-card-editor {
+  max-width: 1260px;
+  width: 96%;
+  max-height: 95vh;
 }
 
 .modal-editor-body {
@@ -1174,14 +1174,14 @@ pre#json-preview {
   gap: 12px;
 }
 
-.modal-card-editor .rich-editor-content {
-  min-height: 320px;
-  max-height: 52vh;
+.modal-card.modal-card-editor .rich-editor-content {
+  min-height: 380px;
+  max-height: 58vh;
 }
 
-.modal-card-editor .rich-editor-source {
-  min-height: 320px;
-  max-height: 52vh;
+.modal-card.modal-card-editor .rich-editor-source {
+  min-height: 380px;
+  max-height: 58vh;
 }
 
 .editor-instructions-details {

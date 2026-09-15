@@ -438,13 +438,6 @@ function init() {
   elements.btnEditorModalClose?.addEventListener('click', closeEditorModal);
   elements.btnCancelModalEditor?.addEventListener('click', closeEditorModal);
 
-  // Fecha modal ao clicar no backdrop (overlay)
-  elements.modalQuestionEditor?.addEventListener('click', (e) => {
-    if (e.target === elements.modalQuestionEditor) {
-      closeEditorModal();
-    }
-  });
-
   // Fecha com a tecla Escape se sub-modais não estiverem abertos
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && elements.modalQuestionEditor?.style.display === 'flex') {
