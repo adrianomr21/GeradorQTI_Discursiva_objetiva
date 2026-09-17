@@ -154,6 +154,68 @@ e) Opção E`;
       assert.ok(parsed);
       assert.strictEqual(parsed.hasFewOptions, false, 'Não deve sinalizar menos de 5 alternativas quando tiver 5');
     });
+
+    it('deve parsear perfeitamente questão com registros contábeis (C-, D-) e afirmações no enunciado sem confundir com alternativas', () => {
+      const raw = `Questão 12
+
+Uma empresa contratou em determinada data um seguro por 36 meses pelo valor de R$12.000,00, sendo pago 50% à vista e o restante em 30 dias. A respeito dessa situação são realizadas as seguintes afirmações:
+
+I- No momento da contratação do seguro, o registro contábil seria esse:
+
+C- Prêmio de seguros a apropriar – R$12.000,00.
+D- Caixa ou equivalente de caixa – R$6.000,00
+D- Seguros a pagar – R$6.000,00
+II- As despesas geradas pelo seguro são apropriadas na medida da vigência do contrato.
+III- O valor a ser apropriado mensalmente de despesas com esse seguro seria de R$1.333,33.
+É correto o que se afirma em:
+A) I, apenas
+*B) II, apenas
+C) III apenas
+D) I e II, apenas
+E) II e III apenas
+Feedback:
+As afirmações I e III estão incorretas. Na afirmação I, os débitos estão invertidos com os créditos. Na afirmação III, o valor correto da realização da despesa seria de R$333,33.`;
+
+      const parsed = QuestionParser.parse(raw, 12);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.id, 12);
+      assert.strictEqual(parsed.type, 'multiple_choice');
+      assert.strictEqual(parsed.title, 'Questão 12');
+
+      // Verifica que o enunciado contém o texto completo, incluindo C-, D- e as afirmações
+      assert.ok(parsed.prompt.includes('Uma empresa contratou em determinada data um seguro'));
+      assert.ok(parsed.prompt.includes('C- Prêmio de seguros a apropriar – R$12.000,00.'));
+      assert.ok(parsed.prompt.includes('D- Caixa ou equivalente de caixa – R$6.000,00'));
+      assert.ok(parsed.prompt.includes('D- Seguros a pagar – R$6.000,00'));
+      assert.ok(parsed.prompt.includes('II- As despesas geradas pelo seguro são apropriadas'));
+      assert.ok(parsed.prompt.includes('III- O valor a ser apropriado mensalmente'));
+      assert.ok(parsed.prompt.includes('É correto o que se afirma em:'));
+
+      // Verifica as alternativas reais (exatamente 5)
+      assert.strictEqual(parsed.options.length, 5);
+      assert.strictEqual(parsed.options[0].letter, 'a');
+      assert.strictEqual(parsed.options[0].text, 'I, apenas');
+      assert.strictEqual(parsed.options[0].isCorrect, false);
+
+      assert.strictEqual(parsed.options[1].letter, 'b');
+      assert.strictEqual(parsed.options[1].text, 'II, apenas');
+      assert.strictEqual(parsed.options[1].isCorrect, true);
+
+      assert.strictEqual(parsed.options[2].letter, 'c');
+      assert.strictEqual(parsed.options[2].text, 'III apenas');
+
+      assert.strictEqual(parsed.options[3].letter, 'd');
+      assert.strictEqual(parsed.options[3].text, 'I e II, apenas');
+
+      assert.strictEqual(parsed.options[4].letter, 'e');
+      assert.strictEqual(parsed.options[4].text, 'II e III apenas');
+
+      // Validações de integridade
+      assert.strictEqual(parsed.hasDuplicateOptions, false, 'Não deve alertar alternativas duplicadas');
+      assert.strictEqual(parsed.hasFewOptions, false);
+      assert.strictEqual(parsed.needsCorrectAnswerAdjustment, false);
+      assert.ok(parsed.feedback.includes('As afirmações I e III estão incorretas.'));
+    });
   });
 
   describe('Questões Discursivas', () => {

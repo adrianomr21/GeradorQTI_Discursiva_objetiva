@@ -53,15 +53,10 @@ export const QuestionParser = {
     Logger.info(`Iniciando análise (parse) da questão #${nextIndex}...`);
 
     let title = `Questão ${nextIndex}`;
-    let promptLines = [];
-    let options = [];
-    let modelAnswerLines = [];
-    let feedbackLines = [];
-    let currentSection = 'prompt'; // 'prompt' | 'modelAnswer' | 'feedback' | 'options'
-
-    // Expressão regular para alternativas no texto plano:
-    // Aceita tanto com texto na mesma linha quanto com texto nas linhas seguintes
-    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))(?:\s*(.*))$/;
+    const modelAnswerLines = [];
+    const feedbackLines = [];
+    const bodyLines = [];
+    let currentSection = 'body'; // 'body' | 'modelAnswer' | 'feedback'
 
     // Expressão regular para Padrão de Resposta
     const modelAnswerRegex = /^(?:padr[aã]o\s+de\s+resposta|resposta\s+modelo|crit[eé]rios?\s+de\s+corre[cç][aã]o|resposta\s+esperada)\s*:?\s*(.*)$/i;
@@ -81,7 +76,7 @@ export const QuestionParser = {
       lineIndex = 1;
     }
 
-    // 2. Itera pelas linhas restantes
+    // 2. Itera pelas linhas restantes separando seções de cabeçalho
     for (; lineIndex < rawLines.length; lineIndex++) {
       const lineHtml = rawLines[lineIndex];
       const linePlain = this.stripHtml(lineHtml);
@@ -114,43 +109,14 @@ export const QuestionParser = {
 
       if (currentSection === 'modelAnswer') {
         modelAnswerLines.push(lineHtml);
-        continue;
-      }
-
-      if (currentSection === 'feedback') {
+      } else if (currentSection === 'feedback') {
         feedbackLines.push(lineHtml);
-        continue;
-      }
-
-      // Verifica Alternativa
-      const optionMatch = linePlain.match(optionRegex);
-      if (optionMatch) {
-        currentSection = 'options';
-        const isCorrect = optionMatch[1] === '*';
-        const letter = (optionMatch[2] || optionMatch[3] || optionMatch[4]).toLowerCase();
-        
-        // Remove o prefixo da alternativa mantendo tags semânticas internas balanceadas
-        let optionContentHtml = this.removeOptionPrefix(lineHtml);
-        // Remove negrito que envolva toda a opção (usado como gabarito no Word), preservando termos em negrito no meio
-        optionContentHtml = this.stripFullOptionBold(optionContentHtml);
-        const optionIndex = options.length + 1;
-
-        options.push({
-          id: `answer_${optionIndex}`,
-          letter: letter,
-          text: isHtml ? HtmlSanitizer.toValidXhtml(optionContentHtml) : optionContentHtml,
-          isCorrect: isCorrect
-        });
       } else {
-        // Enunciado ou continuação
-        if (currentSection === 'prompt') {
-          promptLines.push(lineHtml);
-        } else if (currentSection === 'options' && options.length > 0) {
-          const sep = isHtml ? '<br />' : ' ';
-          options[options.length - 1].text += `${sep}${isHtml ? HtmlSanitizer.toValidXhtml(lineHtml) : lineHtml}`;
-        }
+        bodyLines.push(lineHtml);
       }
     }
+
+    const { promptLines, options } = this.extractOptionsAndPrompt(bodyLines, isHtml);
 
     const rawPrompt = isHtml ? this.assembleBlockContent(promptLines) : promptLines.join('\n');
     const rawModelAnswer = isHtml ? this.assembleBlockContent(modelAnswerLines) : modelAnswerLines.join('\n');
@@ -260,6 +226,200 @@ export const QuestionParser = {
         feedback: feedback
       };
     }
+  },
+
+  /**
+   * Extrai o enunciado (prompt) e as alternativas (options) a partir das linhas do corpo da questão.
+   * Utiliza um algoritmo de pontuação de blocos candidatos para evitar falsos-positivos de alternativas
+   * no meio do enunciado (como registros contábeis C-/D-, tópicos ou algarismos romanos).
+   * @param {Array<string>} bodyLines
+   * @param {boolean} isHtml
+   * @returns {{ promptLines: Array<string>, options: Array<Object> }}
+   */
+  extractOptionsAndPrompt(bodyLines, isHtml) {
+    // Expressão regular para alternativas no texto plano:
+    // Aceita tanto com texto na mesma linha quanto com texto nas linhas seguintes
+    const optionRegex = /^(\*?)\s*(?:\(?([a-eA-E])[\)\.\:\]]|\(?([a-eA-E])\s*[-–—]|\(([a-eA-E])\))(?:\s*(.*))$/;
+    // Padrões de início de instrução ou tópicos de enunciado para penalizar alternativas falsas
+    const promptLeadInRegex = /^(?:[eé]s?t[aã]o?\s+corret[ao]s?|[eé]\s+correto|[aá]ssinale|julgue|com\s+base|considerando|podemos\s+afirmar|pode-se\s+afirmar|[eé]\s+poss[ií]vel\s+afirmar|marque\s+a|escolha\s+a|selecione\s+a|quais?\s+est[aã]o|qual\s+est[aá]|(?:[iIvVxX]+|\d+)[\s\-\–\—\)\.\:])/i;
+
+    const candidateIndices = [];
+    for (let i = 0; i < bodyLines.length; i++) {
+      const plain = this.stripHtml(bodyLines[i]);
+      if (optionRegex.test(plain)) {
+        // Apenas considera como início de bloco candidato se for a primeira linha
+        // ou se a linha anterior NÃO casar com optionRegex (evita iniciar no meio de alternativas consecutivas)
+        const prevPlain = i > 0 ? this.stripHtml(bodyLines[i - 1]) : '';
+        if (i === 0 || !optionRegex.test(prevPlain)) {
+          candidateIndices.push(i);
+        }
+      }
+    }
+
+    if (candidateIndices.length === 0) {
+      return { promptLines: bodyLines, options: [] };
+    }
+
+    let bestCandidate = null;
+    let bestScore = -Infinity;
+
+    for (const startIndex of candidateIndices) {
+      const candidateOptions = [];
+      let duplicateLetterFound = false;
+      let duplicateTextFound = false;
+      let promptLeadInFound = false;
+      const seenLetters = new Set();
+      const seenTexts = new Set();
+
+      for (let j = startIndex; j < bodyLines.length; j++) {
+        const lineHtml = bodyLines[j];
+        const linePlain = this.stripHtml(lineHtml);
+
+        if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
+          continue;
+        }
+
+        const match = linePlain.match(optionRegex);
+        if (match) {
+          const isCorrect = match[1] === '*';
+          const letter = (match[2] || match[3] || match[4]).toLowerCase();
+
+          if (seenLetters.has(letter)) {
+            duplicateLetterFound = true;
+          }
+          seenLetters.add(letter);
+
+          let optionContentHtml = this.removeOptionPrefix(lineHtml);
+          optionContentHtml = this.stripFullOptionBold(optionContentHtml);
+
+          const plainOptText = this.stripHtml(optionContentHtml).replace(/\s+/g, ' ').trim().toLowerCase();
+          if (plainOptText.length > 0) {
+            if (seenTexts.has(plainOptText)) {
+              duplicateTextFound = true;
+            }
+            seenTexts.add(plainOptText);
+          }
+
+          const optIndex = candidateOptions.length + 1;
+          candidateOptions.push({
+            id: `answer_${optIndex}`,
+            letter: letter,
+            text: isHtml ? HtmlSanitizer.toValidXhtml(optionContentHtml) : optionContentHtml,
+            isCorrect: isCorrect
+          });
+        } else {
+          // Linha de continuação
+          if (candidateOptions.length > 0) {
+            if (promptLeadInRegex.test(linePlain)) {
+              promptLeadInFound = true;
+            }
+            const sep = isHtml ? '<br />' : ' ';
+            candidateOptions[candidateOptions.length - 1].text += `${sep}${isHtml ? HtmlSanitizer.toValidXhtml(lineHtml) : lineHtml}`;
+          }
+        }
+      }
+
+      if (candidateOptions.length < 2) {
+        continue;
+      }
+
+      let score = 0;
+
+      // 1. Começa com 'a'
+      const firstLetter = candidateOptions[0].letter;
+      if (firstLetter === 'a') {
+        score += 100;
+      } else {
+        score -= 50;
+      }
+
+      // 2. Sequencialidade das letras (a, b, c, d, e...)
+      let isStrictlySequential = true;
+      let isAscending = true;
+      for (let k = 0; k < candidateOptions.length; k++) {
+        const expectedCharCode = 97 + k;
+        const actualCharCode = candidateOptions[k].letter.charCodeAt(0);
+        if (actualCharCode !== expectedCharCode) {
+          isStrictlySequential = false;
+        }
+        if (k > 0) {
+          const prevCharCode = candidateOptions[k - 1].letter.charCodeAt(0);
+          if (actualCharCode <= prevCharCode) {
+            isAscending = false;
+          }
+        }
+      }
+
+      if (isStrictlySequential) {
+        score += 100;
+      } else if (isAscending) {
+        score += 40;
+      }
+
+      // 3. Penalidade se houver letras duplicadas
+      if (duplicateLetterFound) {
+        score -= 40;
+      }
+
+      // 4. Penalidade se houver texto idêntico entre opções
+      if (duplicateTextFound) {
+        score -= 100;
+      }
+
+      // 5. Penalidade severa se linha de continuação parecer instrução de enunciado
+      if (promptLeadInFound) {
+        score -= 200;
+      }
+
+      // 6. Quantidade de alternativas
+      if (candidateOptions.length === 5) {
+        score += 40;
+      } else if (candidateOptions.length === 4) {
+        score += 30;
+      } else if (candidateOptions.length === 2 || candidateOptions.length === 3) {
+        score += 20;
+      } else if (candidateOptions.length > 5) {
+        score -= 100;
+      }
+
+      // 7. Marcação de correta com asterisco
+      const correctCount = candidateOptions.filter(o => o.isCorrect).length;
+      if (correctCount === 1) {
+        score += 60;
+      } else if (correctCount > 1) {
+        score += 20;
+      }
+
+      // 8. Enunciado presente antes das alternativas
+      if (startIndex > 0) {
+        score += 20;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestCandidate = {
+          startIndex: startIndex,
+          options: candidateOptions,
+          score: score
+        };
+      }
+    }
+
+    if (bestCandidate && bestCandidate.score >= 50) {
+      const promptLines = bodyLines.slice(0, bestCandidate.startIndex);
+      bestCandidate.options.forEach((opt, idx) => {
+        opt.id = `answer_${idx + 1}`;
+      });
+      return {
+        promptLines: promptLines,
+        options: bestCandidate.options
+      };
+    }
+
+    return {
+      promptLines: bodyLines,
+      options: []
+    };
   },
 
   /**
