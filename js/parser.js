@@ -289,7 +289,7 @@ export const QuestionParser = {
           }
           seenLetters.add(letter);
 
-          let optionContentHtml = this.removeOptionPrefix(lineHtml);
+          let optionContentHtml = this.removeOptionPrefix(lineHtml, letter);
           optionContentHtml = this.stripFullOptionBold(optionContentHtml);
 
           const plainOptText = this.stripHtml(optionContentHtml).replace(/\s+/g, ' ').trim().toLowerCase();
@@ -574,31 +574,56 @@ export const QuestionParser = {
   /**
    * Remove prefixos de alternativa (*a), b., (c), etc.) preservando as tags HTML internas abertas
    * e tratando tags inline intermediárias ou prefixos repetidos.
+   * Remove APENAS o primeiro prefixo da alternativa, preservando conteúdo subsequente (como lançamentos contábeis "D -", "C –", etc.).
    * @param {string} html
+   * @param {string} [expectedLetter] - Letra da alternativa (opcional) para remoção precisa
    * @returns {string}
    */
-  removeOptionPrefix(html) {
+  removeOptionPrefix(html, expectedLetter = null) {
     if (!html) return '';
     let cleaned = html;
 
     // 1. Mescla tags de formatação adjacentes preservando espaços intermediários
     cleaned = cleaned.replace(/<\/(strong|b|em|i|u|s|sup|sub)>(\s*)<\1>/gi, (m, tag, sp) => sp || '');
 
-    // 2. Loop para remover prefixos simples ou repetidos (*A), A), *A) *A), etc.)
-    let prev;
-    do {
-      prev = cleaned;
+    // 2. Trata tags fragmentadas no início contendo apenas o asterisco (ex: <strong>*</strong><strong>A)</strong>)
+    cleaned = cleaned.replace(/^<([a-z0-9]+)[^>]*>\s*\*+\s*<\/\1>\s*/i, '');
 
-      // Caso 1: Tag inline abre e fecha contendo apenas o prefixo (ex: <strong>*A)</strong> texto)
-      cleaned = cleaned.replace(/^<([a-z0-9]+)[^>]*>\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*<\/\1>\s*/i, '');
+    const letterClass = expectedLetter ? `[${expectedLetter.toLowerCase()}${expectedLetter.toUpperCase()}]` : '[a-eA-E]';
 
-      // Caso 2: Tag inline abre com o prefixo e continua com o texto (ex: <strong>*A) texto</strong>)
-      cleaned = cleaned.replace(/^(<[a-z0-9]+[^>]*>)\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*/i, '$1');
+    // Expressões regulares para identificar o prefixo da alternativa:
+    // Captura: 1 = tag externa se houver, 2 = asterisco, 3/4/5 = letra, 4/6 = delimitador
+    const fullTagPrefixRegex = new RegExp(`^<([a-z0-9]+)[^>]*>\\s*(\\*?)\\s*(?:\\(?(${letterClass})([\\)\\.\\:\\]\\–\\—-]\\s*)|\\((${letterClass})\\)\\s*)<\\/\\1>\\s*`, 'i');
+    const insideTagPrefixRegex = new RegExp(`^(<[a-z0-9]+[^>]*>)\\s*(\\*?)\\s*(?:\\(?(${letterClass})([\\)\\.\\:\\]\\–\\—-]\\s*)|\\((${letterClass})\\)\\s*)`, 'i');
+    const plainPrefixRegex = new RegExp(`^\\s*(\\*?)\\s*(?:\\(?(${letterClass})([\\)\\.\\:\\]\\–\\—-]\\s*)|\\((${letterClass})\\)\\s*)`, 'i');
 
-      // Caso 3: Prefixo em texto puro no início (ex: *A) texto ou * A) texto)
-      cleaned = cleaned.replace(/^\s*\*?\s*(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*/i, '');
+    let matchedLetter = null;
+    let matchedDelimiter = null;
 
-    } while (cleaned !== prev);
+    // Remove apenas o primeiro prefixo da alternativa
+    if (fullTagPrefixRegex.test(cleaned)) {
+      const m = cleaned.match(fullTagPrefixRegex);
+      matchedLetter = (m[3] || m[5] || '').toLowerCase();
+      matchedDelimiter = m[4] ? m[4].trim() : ')';
+      cleaned = cleaned.replace(fullTagPrefixRegex, '');
+    } else if (insideTagPrefixRegex.test(cleaned)) {
+      const m = cleaned.match(insideTagPrefixRegex);
+      matchedLetter = (m[3] || m[5] || '').toLowerCase();
+      matchedDelimiter = m[4] ? m[4].trim() : ')';
+      cleaned = cleaned.replace(insideTagPrefixRegex, '$1');
+    } else if (plainPrefixRegex.test(cleaned)) {
+      const m = cleaned.match(plainPrefixRegex);
+      matchedLetter = (m[2] || m[4] || '').toLowerCase();
+      matchedDelimiter = m[3] ? m[3].trim() : ')';
+      cleaned = cleaned.replace(plainPrefixRegex, '');
+    }
+
+    // Se houver um prefixo idêntico duplicado logo em seguida (ex: *A) *A) ou A) A) com a MESMA letra e MESMO delimitador)
+    if (matchedLetter && matchedDelimiter) {
+      const escapedDelim = matchedDelimiter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const dupPattern = new RegExp(`^\\s*\\*?\\s*\\(?${matchedLetter}${escapedDelim}\\s*`, 'i');
+      cleaned = cleaned.replace(dupPattern, '');
+    }
 
     // 3. Limpa tags vazias residuais no início (ex: <strong></strong>)
     cleaned = cleaned.replace(/^<([a-z0-9]+)[^>]*>\s*<\/\1>\s*/gi, '');

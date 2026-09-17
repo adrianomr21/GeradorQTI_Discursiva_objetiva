@@ -287,7 +287,7 @@ export function questionToEditorHtml(q) {
       const prefix = opt.isCorrect ? `*${opt.letter.toUpperCase()})` : `${opt.letter.toUpperCase()})`;
       let optText = (opt.text || '').trim();
       // Remove qualquer prefixo residual e negrito total antes de adicionar o prefixo do editor
-      optText = QuestionParser.removeOptionPrefix(optText);
+      optText = QuestionParser.removeOptionPrefix(optText, opt.letter);
       optText = QuestionParser.stripFullOptionBold(optText);
 
       if (optText.startsWith('<p') || optText.startsWith('<div')) {

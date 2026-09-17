@@ -216,6 +216,66 @@ As afirmações I e III estão incorretas. Na afirmação I, os débitos estão 
       assert.strictEqual(parsed.needsCorrectAnswerAdjustment, false);
       assert.ok(parsed.feedback.includes('As afirmações I e III estão incorretas.'));
     });
+
+    it('deve remover apenas a primeira letra da alternativa preservando lançamentos contábeis "D -" no texto das alternativas (Questão 13 e 14)', () => {
+      const rawQ13 = `Questão 13
+Em 31/03/2x, uma Sociedade Empresária adquiriu material renovável a ser pago no prazo de 60 dias, no valor de R$ 5.000,00.
+Marque a opção com os lançamentos (conta a débito e conta a crédito) a ser realizado no livro diário da empresa:
+*A) D - Estoque Matéria Prima renovável C – Fornecedores Ambientais
+B) D - Estoque Matéria Prima C – Fornecedores Ambientais
+C) D - Custo de Produto Vendido Ambiental C – Fornecedores Ambientais
+D) D - Receita de Venda Ambiental C – Fornecedores Ambientais
+E) D - Despesa de Insumo Ambiental C – Fornecedores Ambientais
+Feedback: Aquisição a prazo de material renovável deve ser registrada a débito da conta de Estoque de Matéria Prima reciclada pela aquisição da mercadoria, e a crédito de conta de passivo Fornecedores em função da obrigação assumida.`;
+
+      const parsedQ13 = QuestionParser.parse(rawQ13, 13);
+      assert.ok(parsedQ13);
+      assert.strictEqual(parsedQ13.options.length, 5);
+      assert.strictEqual(parsedQ13.options[0].letter, 'a');
+      assert.strictEqual(parsedQ13.options[0].text, 'D - Estoque Matéria Prima renovável C – Fornecedores Ambientais');
+      assert.strictEqual(parsedQ13.options[0].isCorrect, true);
+
+      assert.strictEqual(parsedQ13.options[1].letter, 'b');
+      assert.strictEqual(parsedQ13.options[1].text, 'D - Estoque Matéria Prima C – Fornecedores Ambientais');
+
+      assert.strictEqual(parsedQ13.options[2].letter, 'c');
+      assert.strictEqual(parsedQ13.options[2].text, 'D - Custo de Produto Vendido Ambiental C – Fornecedores Ambientais');
+
+      assert.strictEqual(parsedQ13.options[3].letter, 'd');
+      assert.strictEqual(parsedQ13.options[3].text, 'D - Receita de Venda Ambiental C – Fornecedores Ambientais');
+
+      assert.strictEqual(parsedQ13.options[4].letter, 'e');
+      assert.strictEqual(parsedQ13.options[4].text, 'D - Despesa de Insumo Ambiental C – Fornecedores Ambientais');
+
+      const rawQ14 = `Questão 14
+Em 31/03/2x, uma Sociedade Empresária adquiriu, a prazo, mudas de caneleiro para a utilização no reflorestamento de 1000 hectares de áreas degradadas, conforme NF 86 no valor de R$ 3.000.
+Marque a opção com os Grupos a serem utilizados para os registros (grupo da conta a débito e Grupo da conta a crédito) no livro diário da empresa:
+A) D – Ativo Circulante Ambiental C – Passivo Ambiental
+*B) D – Ativo Não Circulante Ambiental C – Passivo Ambiental
+C) D - Custo Ambiental C – Passivo Ambiental
+D) D - Receita Ambiental C – Passivo Ambiental
+E) D – Despesa Ambiental C – Passivo Ambiental
+Feedback: Aquisição a prazo de mudas de caneleiro deve ser lançada no débito no grupo do Ativo Não Circulante e no crédito no grupo de Passivo Ambiental.`;
+
+      const parsedQ14 = QuestionParser.parse(rawQ14, 14);
+      assert.ok(parsedQ14);
+      assert.strictEqual(parsedQ14.options.length, 5);
+      assert.strictEqual(parsedQ14.options[0].letter, 'a');
+      assert.strictEqual(parsedQ14.options[0].text, 'D – Ativo Circulante Ambiental C – Passivo Ambiental');
+
+      assert.strictEqual(parsedQ14.options[1].letter, 'b');
+      assert.strictEqual(parsedQ14.options[1].text, 'D – Ativo Não Circulante Ambiental C – Passivo Ambiental');
+      assert.strictEqual(parsedQ14.options[1].isCorrect, true);
+
+      assert.strictEqual(parsedQ14.options[2].letter, 'c');
+      assert.strictEqual(parsedQ14.options[2].text, 'D - Custo Ambiental C – Passivo Ambiental');
+
+      assert.strictEqual(parsedQ14.options[3].letter, 'd');
+      assert.strictEqual(parsedQ14.options[3].text, 'D - Receita Ambiental C – Passivo Ambiental');
+
+      assert.strictEqual(parsedQ14.options[4].letter, 'e');
+      assert.strictEqual(parsedQ14.options[4].text, 'D – Despesa Ambiental C – Passivo Ambiental');
+    });
   });
 
   describe('Questões Discursivas', () => {
