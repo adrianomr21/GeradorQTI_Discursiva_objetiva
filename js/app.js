@@ -419,7 +419,7 @@ function init() {
   document.getElementById('btn-tool-align-right')?.addEventListener('click', () => RichTextEditor.execCmd('justifyRight'));
   document.getElementById('btn-tool-align-justify')?.addEventListener('click', () => RichTextEditor.execCmd('justifyFull'));
   document.getElementById('btn-tool-ul')?.addEventListener('click', () => RichTextEditor.execCmd('insertUnorderedList'));
-  document.getElementById('btn-tool-ol')?.addEventListener('click', () => RichTextEditor.execCmd('insertOrderedList'));
+  document.getElementById('btn-tool-ol')?.addEventListener('click', () => RichTextEditor.convertToRomanList());
   document.getElementById('btn-tool-outdent')?.addEventListener('click', () => RichTextEditor.execCmd('outdent'));
   document.getElementById('btn-tool-indent')?.addEventListener('click', () => RichTextEditor.execCmd('indent'));
   document.getElementById('btn-tool-table')?.addEventListener('click', () => RichTextEditor.insertTable(3, 3));

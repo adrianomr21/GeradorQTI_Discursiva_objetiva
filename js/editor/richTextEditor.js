@@ -5,6 +5,7 @@ import { TableHelper } from './tableHelper.js';
 import { ImageHelper } from './imageHelper.js';
 import { LatexHelper } from './latexHelper.js';
 import { LinkHelper } from './linkHelper.js';
+import { RomanListHelper } from './romanListHelper.js';
 
 export const RichTextEditor = {
   editorElement: null,
@@ -386,6 +387,13 @@ export const RichTextEditor = {
     }
     this.editorElement.focus();
     document.execCommand(command, false, value);
+  },
+
+  /**
+   * Converte a seleção atual ou lista para algarismos romanos em texto simples sem formatação HTML (<ol>/<li>).
+   */
+  convertToRomanList() {
+    RomanListHelper.convertEditorSelection(this.editorElement, this.sourceElement, this.isSourceMode);
   },
 
   /**
