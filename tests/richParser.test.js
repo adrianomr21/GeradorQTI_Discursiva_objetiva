@@ -160,4 +160,42 @@ técnicas e subáreas.</p>`;
     assert.strictEqual(parsed.options.length, 2);
     assert.strictEqual(parsed.options[0].isCorrect, true);
   });
+
+  it('deve limpar &nbsp; em tabelas e manter a tabela fechada sem engolir as alternativas ou outras questões após edição', () => {
+    const tableQuestionHtml = `
+      <p><strong>Questão 1</strong></p>
+      <p>A empresa XYZ S.A apresentou o balanço abaixo:</p>
+      <table><tbody>
+        <tr><td colspan="4"><p><strong>BALANÇO PATRIMONIAL </strong></p></td></tr>
+        <tr><td><p><strong>ATIVO CIRCULANTE</strong></p></td><td><p><strong>&nbsp;&nbsp; 300.000,00 </strong></p></td><td><p><strong>&nbsp;PASSIVO CIRCULANTE </strong></p></td><td><p><strong>&nbsp;&nbsp;&nbsp;&nbsp; 80.000,00 </strong></p></td></tr>
+        <tr><td><p>Banco</p></td><td><p>&nbsp;&nbsp;&nbsp;&nbsp; 80.000,00 </p></td><td><p>&nbsp;Fornecedores </p></td><td><p>&nbsp;&nbsp;&nbsp;&nbsp; 30.000,00 </p></td></tr>
+        <tr><td><p><strong>TOTAL DO ATIVO</strong></p></td><td><p><strong>&nbsp;&nbsp; 700.000,00 </strong></p></td><td><p><strong>&nbsp;TOTAL DO PASSIVO + PL </strong></p></td><td><p><strong>&nbsp;&nbsp; 700.000,00 </strong></p></td></tr>
+      </tbody></table>
+      <p>Diante do cenário acima, o que o Contador deverá:</p>
+      <p><strong>A)</strong> Contabilizar débito de 125k</p>
+      <p><strong>B)</strong> Contabilizar crédito de 125k</p>
+      <p><strong>*C)</strong> Contabilizar Reserva</p>
+      <p><strong>D)</strong> Outra opção</p>
+      <p><strong>E)</strong> Nenhuma das anteriores</p>
+      <p><strong>Feedback:</strong></p>
+      <p>Lucro Líquido = R$500.000,00</p>
+    `;
+
+    const parsed = QuestionParser.parse(tableQuestionHtml, 1);
+    assert.ok(parsed);
+    assert.strictEqual(parsed.type, 'multiple_choice');
+    assert.strictEqual(parsed.options.length, 5);
+    assert.strictEqual(parsed.options[2].isCorrect, true);
+    assert.strictEqual(parsed.options[2].letter, 'c');
+
+    // Não deve conter entidades &nbsp; nem &amp;nbsp;
+    assert.strictEqual(parsed.prompt.includes('&nbsp;'), false, 'Não deve conter &nbsp; no prompt');
+    assert.strictEqual(parsed.prompt.includes('&amp;nbsp;'), false, 'Não deve conter &amp;nbsp; no prompt');
+
+    // A tabela deve estar perfeitamente fechada e não conter as alternativas
+    assert.ok(parsed.prompt.includes('<table>'));
+    assert.ok(parsed.prompt.includes('</table>'));
+    assert.ok(parsed.prompt.includes('Diante do cenário acima'));
+    assert.strictEqual(parsed.prompt.includes('Contabilizar débito'), false, 'Alternativas não devem estar dentro do prompt/tabela');
+  });
 });

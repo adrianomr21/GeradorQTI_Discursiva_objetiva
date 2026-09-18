@@ -15,6 +15,11 @@ export const HtmlSanitizer = {
 
     let clean = html;
 
+    // 0. Converte entidades &nbsp; e &amp;nbsp; e caracteres de espaço não-quebrável em espaço normal
+    clean = clean.replace(/&amp;nbsp;/gi, ' ');
+    clean = clean.replace(/&nbsp;/gi, ' ');
+    clean = clean.replace(/\u00a0/g, ' ');
+
     // 1. Remove comentários condicionais do Office/Word (<![if !supportLists]>...<![endif]>)
     clean = clean.replace(/<!--[\s\S]*?-->/g, '');
     clean = clean.replace(/<!\[[\s\S]*?\]>/g, '');

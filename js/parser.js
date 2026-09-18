@@ -16,7 +16,11 @@ export const QuestionParser = {
 
     // 0. Protege blocos de fórmulas matemáticas (.qti-math, MathML, SVG) contra quebra de linhas e falsos-positivos de alternativas
     const mathTokens = [];
-    const protectedInput = this.protectMathBlocks(rawInput, mathTokens);
+    let protectedInput = this.protectMathBlocks(rawInput, mathTokens);
+
+    // 0.1. Protege blocos de tabelas (<table>...</table>) para manter sua estrutura íntegra e evitar quebra de tags internas
+    const tableTokens = [];
+    protectedInput = this.protectTableBlocks(protectedInput, tableTokens);
 
     // Identifica se a entrada contém tags HTML
     const isHtml = /<[a-z][\s\S]*>/i.test(protectedInput);
@@ -29,10 +33,14 @@ export const QuestionParser = {
       // 3. Converte quebras de linha internas (\r\n) dentro de tags em espaço simples (como o HTML funciona)
       // 4. Converte o marcador de bloco de volta para quebras reais de linha
       normalized = protectedInput
+        .replace(/&amp;nbsp;/gi, ' ')
         .replace(/&nbsp;/gi, ' ')
+        .replace(/\u00a0/g, ' ')
         .replace(/<br\s*\/?>/gi, '__BLOCK_DELIMITER__')
-        .replace(/<\/(p|div|h[1-6]|blockquote)>/gi, '__BLOCK_DELIMITER__')
-        .replace(/<\/(ul|ol|table|iframe|video|object)>/gi, '$&__BLOCK_DELIMITER__')
+        .replace(/<\/(p|div|h[1-6])>/gi, '__BLOCK_DELIMITER__')
+        .replace(/<\/(ul|ol|table|iframe|video|object|blockquote)>/gi, '$&__BLOCK_DELIMITER__')
+        .replace(/<(ul|ol|table|iframe|video|object|blockquote)(\s+[^>]*)?>/gi, '__BLOCK_DELIMITER__$&')
+        .replace(/(__QTI_TABLE_TOKEN_\d+__|__QTI_MATH_TOKEN_\d+__)/g, '__BLOCK_DELIMITER__$1__BLOCK_DELIMITER__')
         .replace(/(?:^|\n)(\s*\*?(?:\(?([a-eA-E])[\)\.\:\]\–\—-]|\(([a-eA-E])\))\s*|\s*(?:padr[aã]o\s+de\s+resposta|feedback|gabarito|coment[aá]rio|quest[aã]o\s*\d+):?)/gi, '__BLOCK_DELIMITER__$1')
         .replace(/\r\n|\r|\n/g, ' ')
         .replace(/__BLOCK_DELIMITER__/g, '\n');
@@ -81,7 +89,7 @@ export const QuestionParser = {
       const lineHtml = rawLines[lineIndex];
       const linePlain = this.stripHtml(lineHtml);
 
-      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
+      if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_') && !lineHtml.includes('__QTI_TABLE_TOKEN_')) {
         continue;
       }
 
@@ -122,13 +130,24 @@ export const QuestionParser = {
     const rawModelAnswer = isHtml ? this.assembleBlockContent(modelAnswerLines) : modelAnswerLines.join('\n');
     const rawFeedback = isHtml ? this.assembleBlockContent(feedbackLines) : feedbackLines.join('\n');
 
-    const prompt = this.restoreMathTokens(rawPrompt, mathTokens);
-    const modelAnswer = this.restoreMathTokens(rawModelAnswer, mathTokens);
-    const feedback = this.restoreMathTokens(rawFeedback, mathTokens);
-    const restoredTitle = this.restoreMathTokens(title, mathTokens);
-    const restoredOptions = options.map(opt => ({
+    // Restaura tokens de fórmulas matemáticas
+    const promptMath = this.restoreMathTokens(rawPrompt, mathTokens);
+    const modelAnswerMath = this.restoreMathTokens(rawModelAnswer, mathTokens);
+    const feedbackMath = this.restoreMathTokens(rawFeedback, mathTokens);
+    const titleMath = this.restoreMathTokens(title, mathTokens);
+    const optionsMath = options.map(opt => ({
       ...opt,
       text: this.restoreMathTokens(opt.text, mathTokens)
+    }));
+
+    // Restaura tokens de tabelas protegidas
+    const prompt = this.restoreTableTokens(promptMath, tableTokens);
+    const modelAnswer = this.restoreTableTokens(modelAnswerMath, tableTokens);
+    const feedback = this.restoreTableTokens(feedbackMath, tableTokens);
+    const restoredTitle = this.restoreTableTokens(titleMath, tableTokens);
+    const restoredOptions = optionsMath.map(opt => ({
+      ...opt,
+      text: this.restoreTableTokens(opt.text, tableTokens)
     }));
 
     if (!prompt.trim() || prompt === '<p></p>') {
@@ -275,7 +294,7 @@ export const QuestionParser = {
         const lineHtml = bodyLines[j];
         const linePlain = this.stripHtml(lineHtml);
 
-        if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_')) {
+        if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_') && !lineHtml.includes('__QTI_TABLE_TOKEN_')) {
           continue;
         }
 
@@ -526,12 +545,103 @@ export const QuestionParser = {
   },
 
   /**
+   * Protege blocos de tabelas (<table>...</table>) substituindo por tokens atômicos.
+   * Evita que linhas e parágrafos internos da tabela sejam quebrados durante a normalização de linhas.
+   * @param {string} html
+   * @param {Array<string>} tableTokens
+   * @returns {string}
+   */
+  protectTableBlocks(html, tableTokens = []) {
+    if (!html) return '';
+    let result = '';
+    let i = 0;
+    while (i < html.length) {
+      const tableStartIdx = html.toLowerCase().indexOf('<table', i);
+      if (tableStartIdx === -1) {
+        result += html.substring(i);
+        break;
+      }
+
+      result += html.substring(i, tableStartIdx);
+
+      // Encontra o fechamento correspondente </table> lidando com tabelas aninhadas
+      let depth = 0;
+      let pos = tableStartIdx;
+      let endPos = -1;
+
+      while (pos < html.length) {
+        const nextOpen = html.toLowerCase().indexOf('<table', pos);
+        const nextClose = html.toLowerCase().indexOf('</table>', pos);
+
+        if (nextClose === -1) break;
+
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth++;
+          pos = nextOpen + 6;
+        } else {
+          depth--;
+          pos = nextClose + 8;
+          if (depth === 0) {
+            endPos = pos;
+            break;
+          }
+        }
+      }
+
+      if (endPos !== -1) {
+        let fullTable = html.substring(tableStartIdx, endPos);
+        // Higieniza a tabela garantindo XHTML válido e sem &nbsp;
+        fullTable = HtmlSanitizer.cleanHtml(fullTable);
+        fullTable = HtmlSanitizer.toValidXhtml(fullTable);
+
+        const token = `__QTI_TABLE_TOKEN_${tableTokens.length}__`;
+        tableTokens.push(fullTable);
+        result += `\n${token}\n`;
+        i = endPos;
+      } else {
+        result += html.substring(tableStartIdx, tableStartIdx + 6);
+        i = tableStartIdx + 6;
+      }
+    }
+    return result;
+  },
+
+  /**
+   * Restaura os tokens de tabelas de volta ao HTML original.
+   * @param {string} str
+   * @param {Array<string>} tableTokens
+   * @returns {string}
+   */
+  restoreTableTokens(str, tableTokens) {
+    if (!str || !tableTokens || tableTokens.length === 0) return str || '';
+    let res = str;
+    tableTokens.forEach((tokenHtml, idx) => {
+      const token = `__QTI_TABLE_TOKEN_${idx}__`;
+      res = res.replaceAll(token, tokenHtml);
+    });
+    return res;
+  },
+
+  /**
+   * Escapa caracteres especiais de uma string para uso seguro em expressões regulares.
+   * @param {string} str
+   * @returns {string}
+   */
+  escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  },
+
+  /**
    * Limpa uma linha individual removendo tags de bloco órfãs no início e no fim.
    * @param {string} line
    * @returns {string}
    */
   cleanLineContent(line) {
     if (!line) return '';
+    const trimmed = line.trim();
+    if (trimmed.startsWith('__QTI_TABLE_TOKEN_') || trimmed.startsWith('__QTI_MATH_TOKEN_')) {
+      return trimmed;
+    }
     let cleaned = HtmlSanitizer.cleanHtml(line);
     // Mescla tags de estilo adjacentes preservando espaços intermediários
     cleaned = cleaned.replace(/<\/(strong|b|em|i|u|s|sup|sub)>(\s*)<\1>/gi, (m, tag, sp) => sp || '');
@@ -552,6 +662,9 @@ export const QuestionParser = {
       .map(line => {
         const trimmed = line.trim();
         if (!trimmed) return '';
+        if (trimmed.startsWith('__QTI_TABLE_TOKEN_') || trimmed.startsWith('__QTI_MATH_TOKEN_')) {
+          return trimmed;
+        }
         if (trimmed.startsWith('<p') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<blockquote') || trimmed.startsWith('<iframe') || trimmed.startsWith('<video') || trimmed.startsWith('<object') || trimmed.startsWith('<embed') || trimmed.startsWith('<figure')) {
           return HtmlSanitizer.toValidXhtml(trimmed);
         }
