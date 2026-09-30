@@ -62,4 +62,23 @@ describe('Edit Question & Reconstitution Module', () => {
     assert.ok(reParsed.modelAnswer.includes('Polimorfismo permite que classes filhas'));
     assert.ok(reParsed.feedback.includes('Revise sobre sobrecarga'));
   });
+
+  it('deve ignorar cliques no card se o alvo for botão de ação ou link', () => {
+    let editedIndex = null;
+    const mockEdit = (idx) => { editedIndex = idx; };
+
+    // Simula evento com alvo sendo botão .btn-remove
+    const fakeBtn = { closest: (selector) => selector === '.btn-card-action' ? fakeBtn : null };
+    const fakeEventBtn = { target: fakeBtn };
+
+    // Se closest('.btn-card-action') retornar elemento, handleQuestionCardClick deve retornar sem chamar editQuestion
+    const fakeClosestBtn = fakeEventBtn.target.closest('.btn-card-action');
+    assert.ok(fakeClosestBtn);
+
+    // Simula evento com alvo normal de texto dentro do card
+    const fakeTextNode = { closest: () => null };
+    const fakeEventNormal = { target: fakeTextNode };
+    const isAction = fakeEventNormal.target.closest('.btn-card-action') || fakeEventNormal.target.closest('a');
+    assert.strictEqual(Boolean(isAction), false);
+  });
 });

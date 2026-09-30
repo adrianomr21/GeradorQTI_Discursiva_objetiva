@@ -846,6 +846,23 @@ pre#json-preview {
   border-radius: 6px;
   background: #ffffff;
   padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.question-card:hover {
+  border-color: #93c5fd;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.09);
+  background: #fafcff;
+}
+
+.question-card:hover .q-card-title strong {
+  color: #1d4ed8;
+}
+
+.question-card:active {
+  transform: translateY(1px);
 }
 
 .q-card-header {

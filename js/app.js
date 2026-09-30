@@ -646,9 +646,28 @@ export function removeQuestion(index) {
   Logger.info(`Questão removida. Restam ${state.questions.length} questões.`);
 }
 
+/**
+ * Manipula o clique no card da questão para abrir o editor
+ * @param {MouseEvent} e - Evento de clique
+ * @param {number} index - Índice da questão
+ */
+export function handleQuestionCardClick(e, index) {
+  // Ignora se o clique foi em um botão de ação, link ou controle de mídia (iframe, video, audio)
+  if (e.target.closest('.btn-card-action') || e.target.closest('a') || e.target.closest('video') || e.target.closest('audio') || e.target.closest('iframe')) {
+    return;
+  }
+  // Se o usuário estiver apenas selecionando texto para copiar, não abre a edição
+  const selection = (typeof window !== 'undefined' && window.getSelection) ? window.getSelection().toString() : '';
+  if (selection && selection.trim().length > 0) {
+    return;
+  }
+  editQuestion(index);
+}
+
 // Expõe globalmente para os onclick dos cards no navegador
 if (typeof window !== 'undefined') {
   window.editQuestion = editQuestion;
+  window.handleQuestionCardClick = handleQuestionCardClick;
   window.removeQuestion = removeQuestion;
 }
 
@@ -1080,7 +1099,7 @@ function render() {
     };
 
     return `
-      <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsWarning ? 'question-card-warning' : ''}" id="q-card-${idx}">
+      <div class="question-card ${isEditing ? 'question-card-editing' : ''} ${needsWarning ? 'question-card-warning' : ''}" id="q-card-${idx}" onclick="handleQuestionCardClick(event, ${idx})" title="Clique para editar esta questão">
         <div class="q-card-header">
           <div class="q-card-title">
             <span class="q-badge ${badgeClass}">${typeLabel}</span>
@@ -1093,8 +1112,7 @@ function render() {
             ${isEditing ? '<span style="color: #2563eb; font-size: 0.78rem; font-weight: 600; margin-left: 6px;">(Editando no momento)</span>' : ''}
           </div>
           <div class="q-card-actions">
-            <button class="btn-card-action btn-edit" onclick="editQuestion(${idx})" title="Editar esta questão">✏️</button>
-            <button class="btn-card-action btn-remove" onclick="removeQuestion(${idx})" title="Remover questão">&times;</button>
+            <button class="btn-card-action btn-remove" onclick="event.stopPropagation(); removeQuestion(${idx})" title="Remover questão">&times;</button>
           </div>
         </div>
         <div class="q-card-body">
@@ -1112,6 +1130,7 @@ function render() {
 // Expõe globalmente para os onclick dos cards no navegador
 if (typeof window !== 'undefined') {
   window.editQuestion = editQuestion;
+  window.handleQuestionCardClick = handleQuestionCardClick;
   window.removeQuestion = removeQuestion;
   window.openEditorModal = openEditorModal;
   window.closeEditorModal = closeEditorModal;
