@@ -107,6 +107,96 @@ export const HtmlSanitizer = {
     // Converte & soltos em &amp; (que não sejam entidades existentes como &amp;, &lt;, &gt;, &quot;, &apos;, &#123;, &#xAB;)
     xhtml = xhtml.replace(/&(?!(amp|lt|gt|quot|apos|#\d+|#x[0-9a-fA-F]+);)/g, '&amp;');
 
-    return xhtml;
+    // Garante que todas as tags abertas sejam fechadas e aninhadas corretamente
+    return this.balanceTags(xhtml);
+  },
+
+  /**
+   * Balanceia tags HTML garantindo que todas as tags abertas sejam fechadas corretamente,
+   * tags órfãs de fechamento sejam descartadas e a estrutura seja estritamente compatível com XML/QTI.
+   * @param {string} html - Fragmento HTML
+   * @returns {string} Fragmento HTML balanceado
+   */
+  balanceTags(html) {
+    if (!html) return '';
+
+    const voidElements = new Set([
+      'br', 'hr', 'img', 'input', 'link', 'meta', 'source', 'track', 'wbr', 'area', 'base', 'col', 'embed', 'param'
+    ]);
+    const inlineFormatting = new Set([
+      'strong', 'em', 'b', 'i', 'u', 's', 'sub', 'sup', 'span', 'small', 'big', 'code', 'mark'
+    ]);
+    const blockElements = new Set([
+      'p', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'blockquote', 'figure', 'figcaption', 'section', 'article'
+    ]);
+
+    const tagRegex = /<\/?([a-zA-Z0-9]+)(?:\s+[^>]*)?\/?>/g;
+    let lastIndex = 0;
+    let result = '';
+    const stack = [];
+    let m;
+
+    while ((m = tagRegex.exec(html)) !== null) {
+      const textBefore = html.substring(lastIndex, m.index);
+      result += textBefore;
+      lastIndex = tagRegex.lastIndex;
+
+      const fullTag = m[0];
+      const tagName = m[1].toLowerCase();
+      const isClosing = fullTag.startsWith('</');
+      const isSelfClosing = fullTag.endsWith('/>') || voidElements.has(tagName);
+
+      if (isClosing) {
+        if (voidElements.has(tagName)) {
+          // </br>, </img> etc. são tags de fechamento espúrias em elementos vazios; descarta
+          continue;
+        }
+        // Localiza a tag correspondente mais recente na pilha
+        const idx = stack.map(s => s.name).lastIndexOf(tagName);
+        if (idx !== -1) {
+          // Fecha todas as tags que foram abertas após ela
+          while (stack.length > idx) {
+            const top = stack.pop();
+            result += `</${top.name}>`;
+          }
+        }
+        // Se não encontrou na pilha, é tag de fechamento órfã: é ignorada (descartada)
+      } else if (isSelfClosing) {
+        if (!fullTag.endsWith('/>')) {
+          result += fullTag.replace(/>$/, ' />');
+        } else {
+          result += fullTag;
+        }
+      } else {
+        // Tag de abertura
+        // Se abrir um elemento de bloco, fecha formatações inline abertas anteriormente
+        if (blockElements.has(tagName)) {
+          while (stack.length > 0 && inlineFormatting.has(stack[stack.length - 1].name)) {
+            const top = stack.pop();
+            result += `</${top.name}>`;
+          }
+          // Fecha <p> anterior se abrir outro <p> sem fechamento
+          if (tagName === 'p' && stack.length > 0 && stack[stack.length - 1].name === 'p') {
+            const top = stack.pop();
+            result += `</${top.name}>`;
+          }
+        }
+        stack.push({ name: tagName, tag: fullTag });
+        result += fullTag;
+      }
+    }
+
+    result += html.substring(lastIndex);
+
+    // Fecha quaisquer tags não-fechadas restantes na pilha em ordem inversa
+    while (stack.length > 0) {
+      const top = stack.pop();
+      result += `</${top.name}>`;
+    }
+
+    // Limpa tags inline de formatação vazias residuais (ex: <strong></strong> ou <em> </em>)
+    result = result.replace(/<(strong|em|b|i|u|s|sub|sup)(\s+[^>]*)?>\s*<\/\1>/gi, '');
+
+    return result;
   }
 };

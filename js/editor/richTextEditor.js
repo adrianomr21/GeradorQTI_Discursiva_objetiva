@@ -52,16 +52,26 @@ export const RichTextEditor = {
       let hasImage = false;
 
       if (items) {
+        const imageFiles = [];
         for (const item of items) {
           if (item.type && item.type.indexOf('image') !== -1) {
-            hasImage = true;
-            e.preventDefault();
             const file = item.getAsFile();
             if (file) {
-              await this.insertImageFile(file);
-              Logger.success('Imagem colada diretamente da área de transferência.');
+              imageFiles.push(file);
             }
-            break;
+          }
+        }
+
+        if (imageFiles.length > 0) {
+          hasImage = true;
+          e.preventDefault();
+          for (const file of imageFiles) {
+            await this.insertImageFile(file);
+          }
+          if (imageFiles.length === 1) {
+            Logger.success('Imagem colada diretamente da área de transferência.');
+          } else {
+            Logger.success(`${imageFiles.length} imagens coladas diretamente da área de transferência.`);
           }
         }
       }
@@ -127,10 +137,16 @@ export const RichTextEditor = {
     // 3. Ouvinte do Input de Arquivo de Imagem
     if (this.imageInput) {
       this.imageInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          await this.insertImageFile(file);
-          Logger.success(`Imagem "${file.name}" carregada no editor.`);
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) {
+          for (const file of files) {
+            await this.insertImageFile(file);
+          }
+          if (files.length === 1) {
+            Logger.success(`Imagem "${files[0].name}" carregada no editor.`);
+          } else {
+            Logger.success(`${files.length} imagens carregadas no editor.`);
+          }
           this.imageInput.value = ''; // Reseta input
         }
       });

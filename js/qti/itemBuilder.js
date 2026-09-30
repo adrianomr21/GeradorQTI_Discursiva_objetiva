@@ -5,6 +5,7 @@
  */
 
 import { XmlHelpers } from './xmlHelpers.js';
+import { HtmlSanitizer } from '../editor/htmlSanitizer.js';
 
 export const ItemBuilder = {
   /**
@@ -26,7 +27,7 @@ export const ItemBuilder = {
    */
   buildMultipleChoice(question, index) {
     const questionId = XmlHelpers.formatQuestionIdentifier(index);
-    const formattedPrompt = XmlHelpers.formatContent(question.prompt);
+    const formattedPrompt = HtmlSanitizer.toValidXhtml(XmlHelpers.formatContent(question.prompt));
     
     // Identifica qual alternativa é a correta
     const correctOpt = question.options.find(opt => opt.isCorrect) || question.options[0];
@@ -35,15 +36,17 @@ export const ItemBuilder = {
     // Monta as tags <simpleChoice>
     const choicesXml = question.options.map(opt => {
       let content = XmlHelpers.cleanMathForQti(opt.text.trim());
+      content = content.replace(/^(?:<p>\s*(?:<br\s*\/?>)?\s*<\/p>\s*|<br\s*\/?>\s*)+/gi, '').trim();
       if (!content.startsWith('<p') && !content.startsWith('<div')) {
         content = `<p>${content}</p>`;
       }
+      content = HtmlSanitizer.toValidXhtml(content);
       return `<simpleChoice identifier="${opt.id}" fixed="true">${content}</simpleChoice>`;
     }).join('');
 
     // Formata o Feedback / Gabarito Comentado
     const feedbackText = question.feedback ? question.feedback : '';
-    const formattedFeedback = XmlHelpers.formatContent(feedbackText);
+    const formattedFeedback = HtmlSanitizer.toValidXhtml(XmlHelpers.formatContent(feedbackText));
 
     return `<?xml version='1.0' encoding='UTF-8'?>
 <assessmentItem xmlns="http://www.imsglobal.org/xsd/imsqti_v2p1" 
@@ -120,7 +123,7 @@ export const ItemBuilder = {
    */
   buildDiscursive(question, index) {
     const questionId = XmlHelpers.formatQuestionIdentifier(index);
-    const formattedPrompt = XmlHelpers.formatContent(question.prompt);
+    const formattedPrompt = HtmlSanitizer.toValidXhtml(XmlHelpers.formatContent(question.prompt));
 
     // 1. Declaração do Padrão de Resposta (correctResponse e rubricBlock)
     let correctResponseXml = '';
@@ -129,7 +132,7 @@ export const ItemBuilder = {
       const escapedModelAnswer = XmlHelpers.escapeXml(question.modelAnswer.trim());
       correctResponseXml = `\n    <correctResponse>\n      <value>${escapedModelAnswer}</value>\n    </correctResponse>`;
       
-      const formattedModelAnswer = XmlHelpers.formatContent(question.modelAnswer.trim());
+      const formattedModelAnswer = HtmlSanitizer.toValidXhtml(XmlHelpers.formatContent(question.modelAnswer.trim()));
       rubricBlockXml = `\n    <rubricBlock view="scorer" use="scoring">\n      <div>\n        ${formattedModelAnswer}\n      </div>\n    </rubricBlock>`;
     }
 
@@ -137,7 +140,7 @@ export const ItemBuilder = {
     let feedbackContent = question.feedback ? question.feedback.trim() : '';
     let feedbackXml = '';
     if (feedbackContent) {
-      const formattedFeedback = XmlHelpers.formatContent(feedbackContent);
+      const formattedFeedback = HtmlSanitizer.toValidXhtml(XmlHelpers.formatContent(feedbackContent));
       feedbackXml = `\n\n  <!-- Feedback / Comentários da Questão (visível ao aluno) -->
   <modalFeedback showHide="show" outcomeIdentifier="FEEDBACKBASIC" identifier="correct_fb">
     <div>

@@ -107,6 +107,11 @@ export const XmlHelpers = {
       return cleanText;
     }
 
+    // Se contiver outras tags HTML (como <img>, <span>, <math>, <strong>), encapsula em parágrafo preservando as tags
+    if (/<[a-z][\s\S]*>/i.test(cleanText)) {
+      return `<p>${cleanText}</p>`;
+    }
+
     // Caso contrário, divide por quebras de linha e cria tags <p>
     const paragraphs = cleanText
       .split(/\r?\n/)

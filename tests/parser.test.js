@@ -276,6 +276,34 @@ Feedback: Aquisição a prazo de mudas de caneleiro deve ser lançada no débito
       assert.strictEqual(parsedQ14.options[4].letter, 'e');
       assert.strictEqual(parsedQ14.options[4].text, 'D – Despesa Ambiental C – Passivo Ambiental');
     });
+
+    it('deve parsear questões com múltiplas imagens base64 gigantes no enunciado e nas alternativas sem corromper as tags nem perder opções', () => {
+      const img1 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+      const img2 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+      
+      const rawHtml = `<p><strong>Questão 7</strong></p>
+<p>Observe a figura a seguir:</p>
+<p><img src="${img1}" alt="Figura 1" /></p>
+<p>Com base na imagem, assinale a alternativa correta:</p>
+<p><strong>*A) </strong><img src="${img2}" alt="Opção A" /></p>
+<p><strong>B) </strong>Texto explicativo B</p>
+<p><strong>C) </strong>Texto explicativo C</p>
+<p><strong>D) </strong>Texto explicativo D</p>
+<p><strong>E) </strong>Texto explicativo E</p>
+<p><strong>Feedback:</strong></p>
+<p>A imagem da alternativa A representa a resposta correta.</p>`;
+
+      const parsed = QuestionParser.parse(rawHtml, 7);
+      assert.ok(parsed);
+      assert.strictEqual(parsed.options.length, 5);
+      assert.strictEqual(parsed.options[0].letter, 'a');
+      assert.strictEqual(parsed.options[0].isCorrect, true);
+      assert.ok(parsed.options[0].text.includes(img2), 'Opção A deve conter a imagem');
+      assert.ok(!parsed.options[0].text.includes('<strong>*A)</strong>'), 'Prefixo não deve estar no texto da opção');
+      assert.ok(!parsed.options[0].text.startsWith('<strong><img'), 'Não deve deixar strong desbalanceado antes de img');
+      assert.strictEqual(parsed.options[1].letter, 'b');
+      assert.strictEqual(parsed.options[1].text, 'Texto explicativo B');
+    });
   });
 
   describe('Questões Discursivas', () => {

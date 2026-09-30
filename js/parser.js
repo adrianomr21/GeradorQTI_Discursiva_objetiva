@@ -14,11 +14,15 @@ export const QuestionParser = {
       return null;
     }
 
-    // 0. Protege blocos de fórmulas matemáticas (.qti-math, MathML, SVG) contra quebra de linhas e falsos-positivos de alternativas
-    const mathTokens = [];
-    let protectedInput = this.protectMathBlocks(rawInput, mathTokens);
+    // 0. Protege blocos de imagens (especialmente Data URLs em base64 gigantes) contra quebra de linhas, lentidão e perda de alternativas
+    const imageTokens = [];
+    let protectedInput = this.protectImageBlocks(rawInput, imageTokens);
 
-    // 0.1. Protege blocos de tabelas (<table>...</table>) para manter sua estrutura íntegra e evitar quebra de tags internas
+    // 0.1. Protege blocos de fórmulas matemáticas (.qti-math, MathML, SVG) contra quebra de linhas e falsos-positivos de alternativas
+    const mathTokens = [];
+    protectedInput = this.protectMathBlocks(protectedInput, mathTokens);
+
+    // 0.2. Protege blocos de tabelas (<table>...</table>) para manter sua estrutura íntegra e evitar quebra de tags internas
     const tableTokens = [];
     protectedInput = this.protectTableBlocks(protectedInput, tableTokens);
 
@@ -141,13 +145,23 @@ export const QuestionParser = {
     }));
 
     // Restaura tokens de tabelas protegidas
-    const prompt = this.restoreTableTokens(promptMath, tableTokens);
-    const modelAnswer = this.restoreTableTokens(modelAnswerMath, tableTokens);
-    const feedback = this.restoreTableTokens(feedbackMath, tableTokens);
-    const restoredTitle = this.restoreTableTokens(titleMath, tableTokens);
-    const restoredOptions = optionsMath.map(opt => ({
+    const promptTable = this.restoreTableTokens(promptMath, tableTokens);
+    const modelAnswerTable = this.restoreTableTokens(modelAnswerMath, tableTokens);
+    const feedbackTable = this.restoreTableTokens(feedbackMath, tableTokens);
+    const titleTable = this.restoreTableTokens(titleMath, tableTokens);
+    const optionsTable = optionsMath.map(opt => ({
       ...opt,
       text: this.restoreTableTokens(opt.text, tableTokens)
+    }));
+
+    // Restaura tokens de imagens protegidas e garante XHTML estritamente válido
+    const prompt = HtmlSanitizer.toValidXhtml(this.restoreImageTokens(promptTable, imageTokens));
+    const modelAnswer = modelAnswerTable ? HtmlSanitizer.toValidXhtml(this.restoreImageTokens(modelAnswerTable, imageTokens)) : '';
+    const feedback = feedbackTable ? HtmlSanitizer.toValidXhtml(this.restoreImageTokens(feedbackTable, imageTokens)) : '';
+    const restoredTitle = this.restoreImageTokens(titleTable, imageTokens);
+    const restoredOptions = optionsTable.map(opt => ({
+      ...opt,
+      text: HtmlSanitizer.toValidXhtml(this.restoreImageTokens(opt.text, imageTokens))
     }));
 
     if (!prompt.trim() || prompt === '<p></p>') {
@@ -294,7 +308,7 @@ export const QuestionParser = {
         const lineHtml = bodyLines[j];
         const linePlain = this.stripHtml(lineHtml);
 
-        if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_') && !lineHtml.includes('__QTI_TABLE_TOKEN_')) {
+        if (!linePlain && !lineHtml.includes('<img') && !lineHtml.includes('__QTI_IMAGE_TOKEN_') && !lineHtml.includes('<table') && !lineHtml.includes('<iframe') && !lineHtml.includes('<video') && !lineHtml.includes('<embed') && !lineHtml.includes('<object') && !lineHtml.includes('__QTI_MATH_TOKEN_') && !lineHtml.includes('__QTI_TABLE_TOKEN_')) {
           continue;
         }
 
@@ -332,8 +346,16 @@ export const QuestionParser = {
             if (promptLeadInRegex.test(linePlain)) {
               promptLeadInFound = true;
             }
-            const sep = isHtml ? '<br />' : ' ';
-            candidateOptions[candidateOptions.length - 1].text += `${sep}${isHtml ? HtmlSanitizer.toValidXhtml(lineHtml) : lineHtml}`;
+            const lastOpt = candidateOptions[candidateOptions.length - 1];
+            const currentText = (lastOpt.text || '').trim();
+            const isEffectivelyEmpty = !currentText || currentText === '<p></p>' || currentText === '<p><br /></p>' || currentText === '<p><br></p>';
+            const lineContent = isHtml ? HtmlSanitizer.toValidXhtml(lineHtml) : lineHtml;
+            if (isEffectivelyEmpty) {
+              lastOpt.text = lineContent;
+            } else {
+              const sep = isHtml ? '<br />' : ' ';
+              lastOpt.text += `${sep}${lineContent}`;
+            }
           }
         }
       }
@@ -439,6 +461,44 @@ export const QuestionParser = {
       promptLines: bodyLines,
       options: []
     };
+  },
+
+  /**
+   * Protege tags <img> (especialmente com base64 Data URLs gigantes) substituindo por tokens atômicos.
+   * Evita lentidão, estouro de memória e quebra de alternativas/linhas ao processar imagens grandes.
+   * @param {string} html
+   * @param {Array<string>} imageTokens
+   * @returns {string}
+   */
+  protectImageBlocks(html, imageTokens = []) {
+    if (!html) return '';
+    let clean = html.replace(/<\/img>/gi, '');
+    const imgRegex = /<img\b[^>]*\/?>/gi;
+    return clean.replace(imgRegex, (match) => {
+      let normalized = match;
+      if (!normalized.endsWith('/>')) {
+        normalized = normalized.replace(/>$/, ' />');
+      }
+      const token = `__QTI_IMAGE_TOKEN_${imageTokens.length}__`;
+      imageTokens.push(normalized);
+      return token;
+    });
+  },
+
+  /**
+   * Restaura os tokens de imagens de volta ao HTML original.
+   * @param {string} str
+   * @param {Array<string>} imageTokens
+   * @returns {string}
+   */
+  restoreImageTokens(str, imageTokens) {
+    if (!str || !imageTokens || imageTokens.length === 0) return str || '';
+    let res = str;
+    imageTokens.forEach((tokenHtml, idx) => {
+      const token = `__QTI_IMAGE_TOKEN_${idx}__`;
+      res = res.replaceAll(token, tokenHtml);
+    });
+    return res;
   },
 
   /**
@@ -639,8 +699,10 @@ export const QuestionParser = {
   cleanLineContent(line) {
     if (!line) return '';
     const trimmed = line.trim();
-    if (trimmed.startsWith('__QTI_TABLE_TOKEN_') || trimmed.startsWith('__QTI_MATH_TOKEN_')) {
-      return trimmed;
+    if (trimmed.startsWith('__QTI_TABLE_TOKEN_') || trimmed.startsWith('__QTI_MATH_TOKEN_') || trimmed.startsWith('__QTI_IMAGE_TOKEN_')) {
+      if (/^__QTI_(TABLE|MATH|IMAGE)_TOKEN_\d+__$/.test(trimmed)) {
+        return trimmed;
+      }
     }
     let cleaned = HtmlSanitizer.cleanHtml(line);
     // Mescla tags de estilo adjacentes preservando espaços intermediários
@@ -648,6 +710,8 @@ export const QuestionParser = {
     // Remove tags de bloco soltas no início/fim da linha para evitar aninhamento quebrado
     cleaned = cleaned.replace(/^\s*<(?:p|div)[^>]*>/i, '');
     cleaned = cleaned.replace(/<\/(?:p|div)>\s*$/i, '');
+    // Remove tags de bloco soltas internas (<p>, </p>, <div>, </div>) que causam aninhamento quebrado
+    cleaned = cleaned.replace(/<\/?(?:p|div)[^>]*>/gi, ' ');
     return cleaned.trim();
   },
 
@@ -721,9 +785,17 @@ export const QuestionParser = {
       cleaned = cleaned.replace(fullTagPrefixRegex, '');
     } else if (insideTagPrefixRegex.test(cleaned)) {
       const m = cleaned.match(insideTagPrefixRegex);
+      const tagMatch = m[1].match(/<([a-z0-9]+)/i);
+      const tag = tagMatch ? tagMatch[1].toLowerCase() : 'strong';
       matchedLetter = (m[3] || m[5] || '').toLowerCase();
       matchedDelimiter = m[4] ? m[4].trim() : ')';
-      cleaned = cleaned.replace(insideTagPrefixRegex, '$1');
+      const afterPrefix = cleaned.replace(insideTagPrefixRegex, '');
+      const hasClosingTag = new RegExp(`<\/${tag}>`, 'i').test(afterPrefix);
+      if (hasClosingTag && afterPrefix.replace(new RegExp(`<\/${tag}>`, 'i'), '').trim().length > 0) {
+        cleaned = `${m[1]}${afterPrefix}`;
+      } else {
+        cleaned = afterPrefix.replace(new RegExp(`<\/${tag}>`, 'i'), '');
+      }
     } else if (plainPrefixRegex.test(cleaned)) {
       const m = cleaned.match(plainPrefixRegex);
       matchedLetter = (m[2] || m[4] || '').toLowerCase();

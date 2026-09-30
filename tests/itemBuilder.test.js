@@ -101,4 +101,30 @@ describe('ItemBuilder Module', () => {
       assert.ok(xml.includes('<ol><li>Critério 1</li><li>Critério 2</li></ol>'));
     });
   });
+
+  describe('Conformidade XML estrita com imagens e tags balanceadas', () => {
+    it('deve gerar XML 100% balanceado e válido mesmo se as alternativas possuírem tags não fechadas ou imagens em base64', () => {
+      const qWithImages = {
+        id: 7,
+        type: 'multiple_choice',
+        title: 'Questão 7',
+        prompt: '<p>Veja o gráfico: <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" alt="Gráfico" /></p>',
+        options: [
+          { id: 'answer_1', letter: 'a', text: '<strong><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" alt="A" />', isCorrect: true },
+          { id: 'answer_2', letter: 'b', text: '<p>Alternativa B</p>', isCorrect: false },
+          { id: 'answer_3', letter: 'c', text: '<em>Alternativa C', isCorrect: false }
+        ],
+        feedback: '<p><strong>Gabarito:</strong> Letra A.</p>'
+      };
+
+      const xml = ItemBuilder.build(qWithImages, 7);
+      assert.ok(xml.includes('QUE__00007'));
+      // Verifica se a tag <strong> na opção A foi fechada antes de fechar </simpleChoice>
+      assert.ok(xml.includes('<strong><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" alt="A" /></strong></p></simpleChoice>'));
+      // Verifica se a tag <em> na opção C foi fechada
+      assert.ok(xml.includes('<p><em>Alternativa C</em></p></simpleChoice>'));
+      // Não deve haver tags descasadas
+      assert.ok(!xml.includes('<strong><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" alt="A" /></simpleChoice>'));
+    });
+  });
 });

@@ -48,5 +48,29 @@ describe('HtmlSanitizer Module', () => {
       const xhtml = HtmlSanitizer.toValidXhtml(html);
       assert.strictEqual(xhtml, '<p>A &amp; B &amp; C &lt; D</p>');
     });
+
+    it('deve balancear e fechar tags não fechadas como <strong> e <em>', () => {
+      const unclosed = '<p><strong>Texto com imagem <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==" alt="img" /></p>';
+      const balanced = HtmlSanitizer.balanceTags(unclosed);
+      assert.ok(balanced.includes('</strong>'), 'Deveria fechar a tag strong');
+      assert.ok(balanced.endsWith('</p>'), 'Deveria terminar com </p>');
+    });
+
+    it('deve descartar tags órfãs de fechamento e tags de fechamento de elementos void como </br> e </img>', () => {
+      const messy = '<p>Linha 1</br>Linha 2</img></div><strong>Texto</strong></em></p>';
+      const balanced = HtmlSanitizer.balanceTags(messy);
+      assert.ok(!balanced.includes('</br>'));
+      assert.ok(!balanced.includes('</img>'));
+      assert.ok(!balanced.includes('</em>'));
+      assert.ok(balanced.includes('<p>Linha 1Linha 2<strong>Texto</strong></p>'));
+    });
+
+    it('deve balancear tags inline quando interrompidas por novos blocos <p>', () => {
+      const html = '<p><strong>Parágrafo 1<p>Parágrafo 2</strong></p>';
+      const balanced = HtmlSanitizer.balanceTags(html);
+      // O primeiro <p><strong> deve ter fechado </strong> antes ou ao abrir o novo <p>
+      assert.ok(!balanced.includes('<strong> <p>'));
+      assert.ok(balanced.includes('<strong>Parágrafo 1</strong>'));
+    });
   });
 });

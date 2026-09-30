@@ -286,9 +286,12 @@ export function questionToEditorHtml(q) {
     q.options.forEach(opt => {
       const prefix = opt.isCorrect ? `*${opt.letter.toUpperCase()})` : `${opt.letter.toUpperCase()})`;
       let optText = (opt.text || '').trim();
+      // Remove parágrafos vazios ou quebras residuais no início
+      optText = optText.replace(/^(?:<p>\s*(?:<br\s*\/?>)?\s*<\/p>\s*|<br\s*\/?>\s*)+/gi, '').trim();
       // Remove qualquer prefixo residual e negrito total antes de adicionar o prefixo do editor
       optText = QuestionParser.removeOptionPrefix(optText, opt.letter);
       optText = QuestionParser.stripFullOptionBold(optText);
+      optText = optText.replace(/^(?:<p>\s*(?:<br\s*\/?>)?\s*<\/p>\s*|<br\s*\/?>\s*)+/gi, '').trim();
 
       if (optText.startsWith('<p') || optText.startsWith('<div')) {
         optText = optText.replace(/^(<[a-z]+[^>]*>)/i, `$1<strong>${prefix}</strong> `);
