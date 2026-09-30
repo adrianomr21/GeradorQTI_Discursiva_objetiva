@@ -6,7 +6,10 @@
  * - Excluir linha atual
  * - Excluir coluna atual
  * - Excluir tabela inteira
+ * - Converter tabela em imagem fixa
  */
+
+import { Logger } from '../logger.js';
 
 export const TableHelper = {
   /**
@@ -223,5 +226,125 @@ export const TableHelper = {
     if (table) {
       table.remove();
     }
+  },
+
+  /**
+   * Converte a tabela selecionada em imagem PNG (DataURL) preservando layout e dimensões exatas.
+   * @param {HTMLTableCellElement|HTMLTableElement} cellOrTable
+   * @returns {Promise<HTMLImageElement|null>}
+   */
+  async convertTableToImage(cellOrTable) {
+    if (!cellOrTable) return null;
+    const table = (cellOrTable.tagName && cellOrTable.tagName.toLowerCase() === 'table')
+      ? cellOrTable
+      : (typeof cellOrTable.closest === 'function' ? cellOrTable.closest('table') : null);
+    if (!table) return null;
+
+    try {
+      // Remove foco e seleções de texto para não capturar cursor ou realces visuais
+      if (typeof window !== 'undefined') {
+        window.getSelection()?.removeAllRanges();
+      }
+      if (typeof document !== 'undefined' && document.activeElement && typeof document.activeElement.blur === 'function') {
+        document.activeElement.blur();
+      }
+
+      // Largura exata renderizada na tela
+      const rect = table.getBoundingClientRect ? table.getBoundingClientRect() : { width: table.offsetWidth || 500 };
+      const tableWidth = Math.round(rect.width || table.offsetWidth || 500);
+
+      let dataUrl = null;
+      if (typeof window !== 'undefined' && typeof window.html2canvas === 'function') {
+        const canvas = await window.html2canvas(table, {
+          scale: 2, // Resolução 2x para nitidez cristalina
+          backgroundColor: '#ffffff',
+          logging: false,
+          useCORS: true
+        });
+        dataUrl = canvas.toDataURL('image/png');
+      } else {
+        dataUrl = await this.tableToImageNative(table);
+      }
+
+      if (!dataUrl) {
+        throw new Error('Falha ao gerar o Data URL da imagem.');
+      }
+
+      if (typeof document !== 'undefined') {
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.alt = 'Tabela da questão';
+        img.style.maxWidth = '100%';
+        img.style.width = `${tableWidth}px`;
+        img.style.height = 'auto';
+        img.style.margin = '10px 0';
+        img.style.display = 'block';
+        img.style.borderRadius = '4px';
+
+        if (table.parentNode) {
+          table.parentNode.replaceChild(img, table);
+        }
+        return img;
+      }
+
+      return null;
+    } catch (err) {
+      if (typeof Logger !== 'undefined') {
+        Logger.error(`Erro ao converter tabela em imagem: ${err.message}`);
+      }
+      return null;
+    }
+  },
+
+  /**
+   * Fallback nativo usando SVG foreignObject e Canvas caso html2canvas não esteja disponível.
+   * @param {HTMLTableElement} table
+   * @returns {Promise<string>}
+   */
+  async tableToImageNative(table) {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return '';
+    const rect = table.getBoundingClientRect ? table.getBoundingClientRect() : { width: 500, height: 150 };
+    const width = Math.max(Math.round(rect.width || table.offsetWidth || 500), 200);
+    const height = Math.max(Math.round(rect.height || table.offsetHeight || 150), 50);
+
+    const cloned = table.cloneNode(true);
+    cloned.style.borderCollapse = 'collapse';
+    cloned.style.backgroundColor = '#ffffff';
+    cloned.style.width = '100%';
+    cloned.style.margin = '0';
+
+    const serialized = new XMLSerializer().serializeToString(cloned);
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml" style="background:#ffffff; font-family: Inter, system-ui, -apple-system, sans-serif; font-size: 14px; color: #1e293b; padding: 4px;">
+          ${serialized}
+        </div>
+      </foreignObject>
+    </svg>`;
+
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = 2;
+        const canvas = document.createElement('canvas');
+        canvas.width = width * scale;
+        canvas.height = height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = (err) => {
+        URL.revokeObjectURL(url);
+        reject(err);
+      };
+      img.src = url;
+    });
   }
 };

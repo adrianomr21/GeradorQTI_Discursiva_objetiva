@@ -320,6 +320,23 @@ export const RichTextEditor = {
       }
     });
 
+    document.getElementById('btn-tbl-to-image')?.addEventListener('click', async () => {
+      if (this.activeCell) {
+        const targetCell = this.activeCell;
+        Logger.info('Convertendo tabela em imagem...');
+        const img = await TableHelper.convertTableToImage(targetCell);
+        if (img) {
+          this.activeCell = null;
+          this.hideTableToolbar();
+          ImageHelper.setSelectedImage(img);
+          this.showImageToolbar();
+          Logger.success('Tabela convertida em imagem com sucesso! Agora ela manterá a formatação fixa em qualquer tela.');
+        }
+      } else {
+        Logger.warn('Selecione uma tabela para converter em imagem.');
+      }
+    });
+
     // --- Ações de Imagem ---
     document.getElementById('btn-img-size-25')?.addEventListener('click', () => {
       ImageHelper.setSize('25%');

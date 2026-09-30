@@ -499,6 +499,19 @@ body {
   color: #ffffff;
 }
 
+.context-btn-convert {
+  background: #15803d;
+  border-color: #166534;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.context-btn-convert:hover {
+  background: #16a34a;
+  border-color: #15803d;
+  color: #ffffff;
+}
+
 .context-separator {
   width: 1px;
   height: 16px;

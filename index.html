@@ -12,6 +12,8 @@
   <script src="lib/jszip.min.js"></script>
   <!-- Biblioteca KaTeX para renderização de LaTeX -->
   <script src="lib/katex/katex.min.js"></script>
+  <!-- Biblioteca html2canvas para conversão de tabelas e elementos em imagem -->
+  <script src="lib/html2canvas.min.js"></script>
 </head>
 <body>
 
@@ -299,6 +301,8 @@
             <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-row" title="Excluir Linha Atual">❌ Linha</button>
             <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-col" title="Excluir Coluna Atual">❌ Coluna</button>
             <button type="button" class="context-btn context-btn-danger" id="btn-tbl-del-table" title="Excluir Tabela Inteira">🗑️ Excluir Tabela</button>
+            <div class="context-separator"></div>
+            <button type="button" class="context-btn context-btn-convert" id="btn-tbl-to-image" title="Converter tabela em imagem fixa (evita desconfigurar em outros computadores e telas)">🖼️ Converter em Imagem</button>
           </div>
 
           <!-- Barra Contextual de Imagem (aparece ao clicar em uma imagem) -->
